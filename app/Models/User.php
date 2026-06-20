@@ -1,0 +1,96 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+//use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
+
+class User extends Authenticatable
+{
+    use HasApiTokens, HasFactory, Notifiable, HasRoles;
+
+   protected $fillable = [
+    'full_name',
+    'email',
+    'password',
+    'country_code',
+    'phone_number',
+    'governorate',
+    'latitude',
+    'longitude',
+    'account_status',
+    'two_factor_enabled',
+    'email_verified_at',
+];
+
+protected $casts = [
+    'email_verified_at' => 'datetime',
+    'latitude'          => 'decimal:8',
+    'longitude'         => 'decimal:8',
+    'two_factor_enabled'=> 'boolean',
+];
+
+    protected $hidden = [
+        'password',
+        'remember_token',
+    ];
+
+
+    // ====================== Relations ======================
+
+    public function veterinarian()
+    {
+        return $this->hasOne(Veterinarian::class);
+    }
+
+    public function volunteer()
+    {
+        return $this->hasOne(Volunteer::class);
+    }
+
+    public function regularUser()
+    {
+        return $this->hasOne(RegularUser::class);
+    }
+
+    public function rescueReports()
+    {
+        return $this->hasMany(RescueReport::class, 'reporter_id');
+    }
+
+    public function assignedRescues()
+    {
+        return $this->hasMany(RescueReport::class, 'assigned_volunteer_id');
+    }
+
+    public function donations()
+    {
+        return $this->hasMany(Donation::class);
+    }
+
+    public function sponsorships()
+    {
+        return $this->hasMany(Sponsorship::class);
+    }
+
+    public function adoptionApplications()
+    {
+        return $this->hasMany(AdoptionApplication::class);
+    }
+
+    public function lostFoundPosts()
+    {
+        return $this->hasMany(LostFound::class);
+    }
+
+    public function matchingPreferences()
+   {
+        return $this->hasMany(
+         UserMatchingPreference::class
+    );
+    }
+}
