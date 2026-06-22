@@ -2,47 +2,94 @@
 
 namespace App\Models;
 
-// use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
+use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
-    /** @use HasFactory<\Database\Factories\UserFactory> */
-    use HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HasRoles;
+    
+    protected $guard_name = 'api';
+   protected $fillable = [
+    'full_name',
+    'email',
+    'password',
+    'country_code',
+    'phone_number',
+    'governorate',
+    'latitude',
+    'longitude',
+    'account_status',
+    'two_factor_enabled',
+];
 
-    /**
-     * The attributes that are mass assignable.
-     *
-     * @var list<string>
-     */
-    protected $fillable = [
-        'name',
-        'email',
-        'password',
-    ];
+protected $casts = [
+    'email_verified_at' => 'datetime',
+    'latitude'          => 'decimal:8',
+    'longitude'         => 'decimal:8',
+    'two_factor_enabled'=> 'boolean',
+];
 
-    /**
-     * The attributes that should be hidden for serialization.
-     *
-     * @var list<string>
-     */
     protected $hidden = [
         'password',
         'remember_token',
     ];
 
-    /**
-     * Get the attributes that should be cast.
-     *
-     * @return array<string, string>
-     */
-    protected function casts(): array
+
+    // ====================== Relations ======================
+
+    public function veterinarian()
     {
-        return [
-            'email_verified_at' => 'datetime',
-            'password' => 'hashed',
-        ];
+        return $this->hasOne(Veterinarian::class);
+    }
+
+    public function volunteer()
+    {
+        return $this->hasOne(Volunteer::class);
+    }
+
+    public function regularUser()
+    {
+        return $this->hasOne(RegularUser::class);
+    }
+
+    public function rescueReports()
+    {
+        return $this->hasMany(RescueReport::class, 'reporter_id');
+    }
+
+    public function assignedRescues()
+    {
+        return $this->hasMany(RescueReport::class, 'assigned_volunteer_id');
+    }
+
+    public function donations()
+    {
+        return $this->hasMany(Donation::class);
+    }
+
+    public function sponsorships()
+    {
+        return $this->hasMany(Sponsorship::class);
+    }
+
+    public function adoptionApplications()
+    {
+        return $this->hasMany(AdoptionApplication::class);
+    }
+
+    public function lostFoundPosts()
+    {
+        return $this->hasMany(LostFound::class);
+    }
+
+
+    public function recordedExpenses()
+    {
+        return $table->hasMany(Expense::class, 'admin_id');
     }
 }
