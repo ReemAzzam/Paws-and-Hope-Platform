@@ -46,4 +46,29 @@ class Animal extends Model
     {
         return $this->hasMany(Sponsorship::class);
     }
+
+    // جلب الكفالة النشطة الحالية فقط للحيوان (إن وجدت)
+    public function activeSponsorship()
+    {
+        return $this->hasOne(Sponsorship::class, 'animal_id')->where('status', 'active');
+    }
+
+    // جلب الكفيل الحالي مباشرة (مفيد للوحة تحكم الإدارة)
+    public function currentSponsor()
+    {
+        return $this->hasOneThrough(
+            User::class,
+            Sponsorship::class,
+            'animal_id', 
+            'id',        
+            'id',        
+            'user_id'    
+        )->where('sponsorships.status', 'active');
+    }
+
+
+    public function updates()
+    {
+        return $this->hasMany(AnimalUpdate::class);
+    }
 }

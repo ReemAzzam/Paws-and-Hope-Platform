@@ -15,6 +15,7 @@ class DatabaseSeeder extends Seeder
     {
         $this->call([
             UserRoleSeeder::class,
+            AnimalSeeder::class,
         ]);
 
         /*User::factory()->create([

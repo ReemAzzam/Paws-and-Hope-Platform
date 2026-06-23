@@ -90,6 +90,18 @@ protected $casts = [
 
     public function recordedExpenses()
     {
-        return $table->hasMany(Expense::class, 'admin_id');
+        return $this->hasMany(Expense::class, 'admin_id');
+    }
+
+    public function sponsoredAnimals()
+    {
+        return $this->hasManyThrough(
+            Animal::class,
+            Sponsorship::class,
+            'user_id',     // المفتاح الخارجي في جدول الكفالات
+            'id',          // المفتاح المحلي في جدول الحيوانات
+            'id',          // المفتاح المحلي في جدول المستخدمين
+            'animal_id'    // المفتاح الخارجي في جدول الكفالات الموجه للحيوان
+        )->where('sponsorships.status', 'active'); // ترشيح الكفالات النشطة فقط
     }
 }

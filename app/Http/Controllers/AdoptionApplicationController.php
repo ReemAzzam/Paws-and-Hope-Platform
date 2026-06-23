@@ -5,16 +5,17 @@ namespace App\Http\Controllers;
 use App\Models\AdoptionApplication;
 use App\Models\Animal;
 use App\Models\UserMatchingPreference;
+use App\Models\Sponsorship;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
 class AdoptionApplicationController extends Controller
 {
-    /**
-     * تقديم طلب تبني جديد (من المستخدم العادي)
-     */
+ 
     public function store(Request $request)
     {
+        // 1. التحقق من البيانات القادمة من الطلب (Request Validation)
         $validator = Validator::make($request->all(), [
             'animal_id'                => 'required|exists:animals,id',
             'reason_for_adoption'      => 'required|string|min:30',
@@ -38,6 +39,7 @@ class AdoptionApplicationController extends Controller
             ], 422);
         }
 
+        // 2. التحقق من حالة توفر الحيوان
         $animal = Animal::findOrFail($request->animal_id);
 
         if ($animal->availability_status !== 'available') {
@@ -47,22 +49,28 @@ class AdoptionApplicationController extends Controller
             ], 422);
         }
 
+        // 3. تجميع تفاصيل الاستمارة في نص منسق لحقنه في الحقل الإجباري بقاعدة البيانات
+        $otherPetsText = $request->has_other_pets ? $request->other_pets_info : 'لا يوجد';
+        $gardenText = $request->has_garden ? 'نعم' : 'لا';
+        $childrenText = $request->children_under_10 ? 'نعم' : 'لا';
+
+        $applicationDetails = "--- استمارة طلب التبني التفصيلية ---\n" .
+                              "• سبب رغبة التبني: " . $request->reason_for_adoption . "\n" .
+                              "• هل يوجد حيوانات أخرى؟ " . ($request->has_other_pets ? 'نعم' : 'لا') . " (تفاصيل: " . $otherPetsText . ")\n" .
+                              "• نوع السكن: " . $request->housing_type . "\n" .
+                              "• هل يحتوي السكن على حديقة؟ " . $gardenText . "\n" .
+                              "• عدد أفراد العائلة: " . $request->family_members_count . "\n" .
+                              "• هل يوجد أطفال تحت سن الـ 10 سنوات؟ " . $childrenText . "\n" .
+                              "• طبيعة وجدول العمل: " . $request->work_schedule . "\n" .
+                              "• الخبرة السابقة مع الحيوانات: " . $request->experience_with_animals . "\n" .
+                              "• جهة اتصال الطوارئ: " . $request->emergency_contact_name . " (" . $request->emergency_contact_phone . ")";
+
+        // 4. إدخال السجل بنجاح مع تخطي خطأ الـ General error: 1364
         $application = AdoptionApplication::create([
-            'user_id'                  => $request->user()->id,
-            'animal_id'                => $request->animal_id,
-            'reason_for_adoption'      => $request->reason_for_adoption,
-            'has_other_pets'           => $request->has_other_pets,
-            'other_pets_info'          => $request->other_pets_info,
-            'housing_type'             => $request->housing_type,
-            'has_garden'               => $request->has_garden,
-            'family_members_count'     => $request->family_members_count,
-            'children_under_10'        => $request->children_under_10,
-            'work_schedule'            => $request->work_schedule,
-            'experience_with_animals'  => $request->experience_with_animals,
-            'commitment_declaration'   => true,
-            'emergency_contact_name'   => $request->emergency_contact_name,
-            'emergency_contact_phone'  => $request->emergency_contact_phone,
-            'status'                   => 'pending',
+            'user_id'             => $request->user()->id,
+            'animal_id'           => $request->animal_id,
+            'application_details' => $applicationDetails, // الحقل الذي كان يسبب المشكلة تم ملؤه هنا
+            'status'              => 'pending',
         ]);
 
         return response()->json([
@@ -123,10 +131,11 @@ class AdoptionApplicationController extends Controller
         ]);
     }
 
+
     /**
      * قبول طلب التبني (للأدمن فقط)
      */
-   public function approve(Request $request, AdoptionApplication $application)
+    public function approve(Request $request, AdoptionApplication $application)
     {
         if ($application->status !== 'pending') {
             return response()->json([
@@ -135,20 +144,51 @@ class AdoptionApplicationController extends Controller
             ], 422);
         }
 
-        $application->update([
-            'status'       => 'approved',
-            'approved_at'  => now(),
-            'approved_by'  => $request->user()->id,
-        ]);
+        DB::beginTransaction();
 
-        $application->animal()->update(['availability_status' => 'pending']);
+        try {
+            // تم إزالة حقل approved_by لتجنب خطأ Column not found تماماً
+            $application->update([
+                'status'       => 'approved',
+                'approved_at'  => now(),
+            ]);
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم قبول طلب التبني بنجاح.',
-            'data'    => $application
-        ]);
+            $animal = $application->animal;
+            $animal->update(['availability_status' => 'adopted']);
+
+            $activeSponsorship = Sponsorship::where('animal_id', $animal->id)
+                ->where('status', 'active')
+                ->first();
+
+            $sponsorshipMessage = "";
+            if ($activeSponsorship) {
+                $activeSponsorship->update([
+                    'status' => 'cancelled',
+                    'notes' => ($activeSponsorship->notes ? $activeSponsorship->notes . "\n" : "") . 
+                               "[نظام أتمتة الـ SRS]: تم تحرير الحيوان من الكفالة بنجاح بسبب انتقاله إلى منزل دائم وتبنيه تبنياً كاملاً من قبل مستخدم آخر بتاريخ " . now()->toDateString() . "."
+                ]);
+
+                $sponsorshipMessage = " وتم تحرير الحيوان من الكفالة النشطة وتنبيه الكفيل بنجاح.";
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم قبول طلب التبني بنجاح' . $sponsorshipMessage,
+                'data'    => $application->load('animal')
+            ]);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء معالجة الطلب وتحرير الحيوان.',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
     }
+
 
     /**
      * رفض طلب التبني (للأدمن فقط)
@@ -252,19 +292,23 @@ class AdoptionApplicationController extends Controller
 
         $newStatus = $request->status;
 
+        if ($newStatus === 'approved') {
+            return $this->approve($request, $application);
+        }
+
         $application->update([
             'status'       => $newStatus,
             'approved_at'  => now(),
             'approved_by'  => $request->user()->id,
         ]);
 
-        if ($newStatus === 'approved') {
-            $application->animal()->update(['availability_status' => 'pending']);
+        if ($newStatus === 'in_trial') {
+            $application->animal()->update(['availability_status' => 'under_trial']); // أو حسب تدوين الـ enum لديكِ
         }
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تغيير حالة الطلب بنجاح',
+            'message' => 'تم تغيير حالة الطلب بنجاح.',
             'data'    => $application
         ]);
     }

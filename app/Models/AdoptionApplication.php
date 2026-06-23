@@ -10,13 +10,13 @@ class AdoptionApplication extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id',
-        'animal_id',
-        'application_details',
-        'status',
-        'approved_at'
+        'user_id', 
+        'animal_id', 
+        'application_details', 
+        'status', 
+        'approved_at', 
+        'approved_by'
     ];
-
     public function user()
     {
         return $this->belongsTo(User::class);

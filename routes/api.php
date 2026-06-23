@@ -14,6 +14,10 @@ use App\Http\Controllers\RescueConsultationController;
 use App\Http\Controllers\DonationController;
 use App\Http\Controllers\ExpenseController;
 use App\Http\Controllers\TransparencyDashboardController;
+use App\Http\Controllers\SponsorshipController;
+use App\Http\Controllers\AnimalUpdateController;
+use App\Http\Controllers\AdoptionApplicationController;
+
 /*
 |--------------------------------------------------------------------------
 | API Routes
@@ -29,6 +33,7 @@ Route::prefix('v1')->group(function () {
     // Public Animals Routes (all can view)
     Route::get('/view_animals', [AnimalController::class, 'index']);     
     Route::get('/view_animal_details/{animal}', [AnimalController::class, 'show']); 
+    
     // Public Rescue Reports
     Route::post('/rescue/reports', [RescueReportController::class, 'store']);
 
@@ -69,6 +74,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/{id}/consultations', [RescueConsultationController::class, 'getReportConsultations'])
                 ->middleware('role:Volunteer');
         });
+
         // ====================== مسارات المتطوع الميداني اللحظية ======================
         Route::middleware(['auth:sanctum', 'role:Volunteer'])->prefix('volunteer')->group(function () {
             Route::post('/update-location', [RescueReportController::class, 'updateVolunteerLocation']);
@@ -80,8 +86,6 @@ Route::prefix('v1')->group(function () {
             Route::get('/backup-requests/available', [BackupRequestController::class, 'getAvailableBackupRequests']);
 
             Route::post('/rescue-consultations', [RescueConsultationController::class, 'store']);
-
-        
         });
 
         Route::group(['middleware' => ['auth:sanctum', 'role:Veterinarian']], function () {
@@ -90,24 +94,66 @@ Route::prefix('v1')->group(function () {
             Route::get('/rescue-consultations/pending', [RescueConsultationController::class, 'getPendingConsultations']);      
         });
 
-         // ====================== موديول التبرعات والشفافية المالية (المستحدث) ======================
+        // ====================== موديول التبرعات والشفافية المالية ======================
         Route::prefix('donations')->group(function () {
             // مسار إرسال التبرع المالي ورفع وصل الحوالة للمستخدم المسجل
             Route::post('/store', [DonationController::class, 'store']);
         });
 
-        // ====================== لوحة تحكم الإدارة المالية (SuperAdmin) ======================
-        Route::middleware('role:SuperAdmin')->prefix('admin/donations')->group(function () {
-            Route::get('/pending', [DonationController::class, 'getPendingDonations']);
-            Route::patch('/{id}/approve', [DonationController::class, 'approveDonation']);
-            Route::patch('/{id}/reject', [DonationController::class, 'rejectDonation']);
-            // تحميل التقارير المالية 
-            Route::get('/financial-report/data', [TransparencyDashboardController::class, 'getFinancialReportData']);
-            
+        // ====================== موديول نظام الكفالة الكاملة المستقل (المستحدث) ======================
+        Route::prefix('sponsorships')->group(function () {
+            Route::post('/request', [SponsorshipController::class, 'requestSponsorship']);
+            Route::post('/{id}/renew', [SponsorshipController::class, 'renewPayment']); 
+            Route::get('/my-sponsorships', [SponsorshipController::class, 'mySponsorships']);
+
+            Route::get('/available-animals', [SponsorshipController::class, 'availableAnimalsForSponsorship']);
         });
 
-        Route::middleware('role:SuperAdmin')->prefix('admin/expenses')->group(function () {
-            Route::post('/store', [ExpenseController::class, 'store']);
+        // ====================== لوحة تحكم الإدارة المالية (SuperAdmin) ======================
+        Route::middleware('role:SuperAdmin')->prefix('admin')->group(function () {
+            // إدارة التبرعات العامة
+            Route::get('/donations/pending', [DonationController::class, 'getPendingDonations']);
+            Route::patch('/donations/{id}/approve', [DonationController::class, 'approveDonation']);
+            Route::patch('/donations/{id}/reject', [DonationController::class, 'rejectDonation']);
+            
+            // إدارة ودراسة دفعات الكفالة الكاملة
+            Route::post('/sponsorship-payments/{id}/verify', [SponsorshipController::class, 'verifyPayment']);
+            Route::get('/sponsorships', [SponsorshipController::class, 'index']);
+            Route::get('/sponsorships/{id}', [SponsorshipController::class, 'show']);
+
+            // مسار لرفع تحديث جديد لحيوان معين بناءً على معرف الحيوان (ID)
+            Route::post('/animals/{animal}/updates', [AnimalUpdateController::class, 'store']);
+
+            // التقارير المالية والمصاريف
+            Route::get('/donations/financial-report/data', [TransparencyDashboardController::class, 'getFinancialReportData']);
+            Route::post('/expenses/store', [ExpenseController::class, 'store']);
+
+            // عرض كافة طلبات التبني في النظام مع الفلاتر والصفحات
+            Route::get('/applications', [AdoptionApplicationController::class, 'index']);
+            
+            // عرض تفاصيل طلب تبني محدد بشكل تفصيلي
+            Route::get('/applications/{application}', [AdoptionApplicationController::class, 'show']);
+            
+            // قبول طلب التبني مباشرة وتحرير الحيوان من الكفالة النشطة تلقائياً
+            Route::post('/applications/{application}/approve', [AdoptionApplicationController::class, 'approve']);
+            
+            // رفض طلب التبني
+            Route::post('/applications/{application}/reject', [AdoptionApplicationController::class, 'reject']);
+            
+            // تغيير حالة الطلب بشكل عام (approved, rejected, in_trial)
+            Route::patch('/applications/{application}/status', [AdoptionApplicationController::class, 'changeStatus']);
+        });
+
+        // ====================== موديول طلبات التبني (Adoption Applications) ======================
+
+        Route::prefix('adoption')->group(function () {
+            Route::post('/store', [AdoptionApplicationController::class, 'store']);
+
+            Route::get('/my-applications', [AdoptionApplicationController::class, 'myApplications']);
+            
+            Route::put('/applications/{application}', [AdoptionApplicationController::class, 'update']);
+
+            Route::delete('/applications/{application}', [AdoptionApplicationController::class, 'destroy']);
         });
 
         // ====================== Animal Management Routes ======================
