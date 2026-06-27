@@ -1,8 +1,7 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Animal;
 use App\Models\AnimalPhoto;
 use Illuminate\Http\Request;
@@ -14,30 +13,68 @@ class AnimalController extends Controller
     /**
      * عرض قائمة الحيوانات مع الفلترة اللحظية
      */
-    public function index(Request $request)
-    {
-        $query = Animal::with(['photos', 'vet']);
+     public function index(Request $request)
+{
+    $query = Animal::with(['photos', 'vet']);
 
-        if ($request->has('type')) {
-            $query->where('type', $request->type);
-        }
-        if ($request->has('gender')) {
-            $query->where('gender', $request->gender);
-        }
-        if ($request->has('status')) {
-            $query->where('availability_status', $request->status);
-        }
-        if ($request->has('urgent')) {
-            $query->where('is_urgent', true);
-        }
+    // Normalize inputs
+    $type   = strtolower($request->input('type'));
+    $gender = strtolower($request->input('gender'));
+    $status = strtolower($request->input('status'));
+    $urgent = $request->input('urgent');
 
-        $animals = $query->latest()->paginate(12);
+    // Allowed ENUM values
+    $allowedTypes   = ['dog','cat','bird','rabbit','other'];
+    $allowedGender  = ['male','female','unknown'];
+    $allowedStatus  = ['available','pending','adopted','sponsored','under_treatment'];
 
-        return response()->json([
-            'success' => true,
-            'data' => $animals
-        ]);
-    }
+    // فلترة النوع
+    $query->when(in_array($type, $allowedTypes), function ($q) use ($type) {
+        $q->where('type', $type);
+    });
+
+    // فلترة الجنس
+    $query->when(in_array($gender, $allowedGender), function ($q) use ($gender) {
+        $q->where('gender', $gender);
+    });
+
+    // فلترة حالة الحيوان
+    $query->when(in_array($status, $allowedStatus), function ($q) use ($status) {
+        $q->where('availability_status', $status);
+    });
+
+    // فلترة المستعجل
+    $query->when($urgent !== null, function ($q) use ($urgent) {
+        $q->where('is_urgent', filter_var($urgent, FILTER_VALIDATE_BOOLEAN));
+    });
+
+    // فلترة العمر (اختياري)
+    $query->when($request->filled('min_age'), function ($q) use ($request) {
+        $q->where('age', '>=', $request->min_age);
+    });
+
+    $query->when($request->filled('max_age'), function ($q) use ($request) {
+        $q->where('age', '<=', $request->max_age);
+    });
+
+    // فلترة الوزن (اختياري)
+    $query->when($request->filled('min_weight'), function ($q) use ($request) {
+        $q->where('weight', '>=', $request->min_weight);
+    });
+
+    $query->when($request->filled('max_weight'), function ($q) use ($request) {
+        $q->where('weight', '<=', $request->max_weight);
+    });
+
+    // تنفيذ الاستعلام
+    $animals = $query->latest()->paginate(12);
+
+    return response()->json([
+        'success' => true,
+        'data' => $animals
+    ]);
+}
+
 
     /**
      * إضافة حيوان جديد للنظام (يدوياً من الأدمن أو النظام)
@@ -62,7 +99,7 @@ class AnimalController extends Controller
             'is_urgent'           => 'boolean',
             'is_vaccinated'       => 'boolean',
             'is_neutered'         => 'boolean',
-            'photos.*'            => 'image|mimes:jpeg,png,jpg,gif|max:5120', 
+            'photos.*'            => 'image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
 
         if ($validator->fails()) {
@@ -81,7 +118,7 @@ class AnimalController extends Controller
                 AnimalPhoto::create([
                     'animal_id'    => $animal->id,
                     'photo_url'    => Storage::url($path),
-                    'is_main'      => $index === 0,   
+                    'is_main'      => $index === 0,
                     'order_number' => $index,
                 ]);
             }

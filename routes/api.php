@@ -7,7 +7,7 @@ use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\OTPController;
 use App\Http\Controllers\Auth\ForgotPasswordController;
 use App\Http\Controllers\Auth\ProfileController;
-use App\Http\Controllers\Api\AnimalController;
+use App\Http\Controllers\AnimalController;
 use App\Http\Controllers\RescueReportController;
 use App\Http\Controllers\BackupRequestController;
 use App\Http\Controllers\RescueConsultationController;
@@ -17,6 +17,7 @@ use App\Http\Controllers\TransparencyDashboardController;
 use App\Http\Controllers\SponsorshipController;
 use App\Http\Controllers\AnimalUpdateController;
 use App\Http\Controllers\AdoptionApplicationController;
+use App\Http\Controllers\LostFoundController;
 
 /*
 |--------------------------------------------------------------------------
@@ -31,9 +32,9 @@ Route::prefix('v1')->group(function () {
     Route::post('/login',    [LoginController::class, 'login']);
 
     // Public Animals Routes (all can view)
-    Route::get('/view_animals', [AnimalController::class, 'index']);     
-    Route::get('/view_animal_details/{animal}', [AnimalController::class, 'show']); 
-    
+   Route::get('/animals', [AnimalController::class, 'index']);
+   Route::get('/animals/{animal}', [AnimalController::class, 'show']);
+
     // Public Rescue Reports
     Route::post('/rescue/reports', [RescueReportController::class, 'store']);
 
@@ -91,7 +92,7 @@ Route::prefix('v1')->group(function () {
         Route::group(['middleware' => ['auth:sanctum', 'role:Veterinarian']], function () {
             // الرد على استشارة ميدانية
             Route::put('/rescue-consultations/{id}/answer', [RescueConsultationController::class, 'answer']);
-            Route::get('/rescue-consultations/pending', [RescueConsultationController::class, 'getPendingConsultations']);      
+            Route::get('/rescue-consultations/pending', [RescueConsultationController::class, 'getPendingConsultations']);
         });
 
         // ====================== موديول التبرعات والشفافية المالية ======================
@@ -103,7 +104,7 @@ Route::prefix('v1')->group(function () {
         // ====================== موديول نظام الكفالة الكاملة المستقل (المستحدث) ======================
         Route::prefix('sponsorships')->group(function () {
             Route::post('/request', [SponsorshipController::class, 'requestSponsorship']);
-            Route::post('/{id}/renew', [SponsorshipController::class, 'renewPayment']); 
+            Route::post('/{id}/renew', [SponsorshipController::class, 'renewPayment']);
             Route::get('/my-sponsorships', [SponsorshipController::class, 'mySponsorships']);
 
             Route::get('/available-animals', [SponsorshipController::class, 'availableAnimalsForSponsorship']);
@@ -115,7 +116,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/donations/pending', [DonationController::class, 'getPendingDonations']);
             Route::patch('/donations/{id}/approve', [DonationController::class, 'approveDonation']);
             Route::patch('/donations/{id}/reject', [DonationController::class, 'rejectDonation']);
-            
+
             // إدارة ودراسة دفعات الكفالة الكاملة
             Route::post('/sponsorship-payments/{id}/verify', [SponsorshipController::class, 'verifyPayment']);
             Route::get('/sponsorships', [SponsorshipController::class, 'index']);
@@ -130,16 +131,16 @@ Route::prefix('v1')->group(function () {
 
             // عرض كافة طلبات التبني في النظام مع الفلاتر والصفحات
             Route::get('/applications', [AdoptionApplicationController::class, 'index']);
-            
+
             // عرض تفاصيل طلب تبني محدد بشكل تفصيلي
             Route::get('/applications/{application}', [AdoptionApplicationController::class, 'show']);
-            
+
             // قبول طلب التبني مباشرة وتحرير الحيوان من الكفالة النشطة تلقائياً
             Route::post('/applications/{application}/approve', [AdoptionApplicationController::class, 'approve']);
-            
+
             // رفض طلب التبني
             Route::post('/applications/{application}/reject', [AdoptionApplicationController::class, 'reject']);
-            
+
             // تغيير حالة الطلب بشكل عام (approved, rejected, in_trial)
             Route::patch('/applications/{application}/status', [AdoptionApplicationController::class, 'changeStatus']);
         });
@@ -150,7 +151,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/store', [AdoptionApplicationController::class, 'store']);
 
             Route::get('/my-applications', [AdoptionApplicationController::class, 'myApplications']);
-            
+
             Route::put('/applications/{application}', [AdoptionApplicationController::class, 'update']);
 
             Route::delete('/applications/{application}', [AdoptionApplicationController::class, 'destroy']);
@@ -168,13 +169,28 @@ Route::prefix('v1')->group(function () {
                 ->middleware('role:SuperAdmin,Veterinarian');
 
             // only SuperAdmin can delete animals
-            Route::delete('/delete/{animal}', [AnimalController::class, 'destroy'])
+            Route::delete('/{animal}', [AnimalController::class, 'destroy'])
                 ->middleware('role:SuperAdmin');
 
             // only SuperAdmin + Veterinarian can delete photos
             Route::delete('/photos/{photo}', [AnimalController::class, 'deletePhoto'])
                 ->middleware('role:SuperAdmin,Veterinarian');
         });
+         // ====================== Lost & Found Routes ======================
+    Route::prefix('lost-found')->group(function () {
 
+    // Public Routes (يمكن للجميع الوصول)
+       Route::get('/', [LostFoundController::class, 'index']);                    // قائمة المنشورات + فلاتر
+       Route::get('/nearby', [LostFoundController::class, 'searchNearby']);       // بحث حسب الموقع
+       Route::get('/{lostFound}', [LostFoundController::class, 'show']);          // تفاصيل منشور
+       Route::get('/{lostFound}/similar', [LostFoundController::class, 'similarPosts']); // منشورات مشابهة
+
+    // Protected Routes (تحتاج تسجيل دخول)
+    Route::middleware('auth:sanctum')->group(function () {
+        Route::post('/', [LostFoundController::class, 'store']);                    // إنشاء منشور جديد
+        Route::put('/{lostFound}/status', [LostFoundController::class, 'updateStatus']); // تغيير الحالة
+        Route::delete('/{lostFound}', [LostFoundController::class, 'destroy']);     // حذف المنشور
+       });
     });
+  });
 });

@@ -11,10 +11,10 @@ class Animal extends Model
     use HasFactory, SoftDeletes;
 
     protected $fillable = [
-        'name', 'type', 'gender', 'age', 'size', 'weight',
-        'description', 'story', 'health_status', 'is_vaccinated',
-        'is_neutered', 'is_adoptable', 'is_urgent',
-        'latitude', 'longitude', 'vet_id'
+       'name', 'type', 'gender', 'age', 'size', 'weight',
+    'description', 'story', 'health_status', 'is_vaccinated',
+    'is_neutered', 'availability_status', 'is_urgent',
+    'latitude', 'longitude', 'vet_id', 'rescue_report_id'
     ];
 
     public function vet()
@@ -59,10 +59,10 @@ class Animal extends Model
         return $this->hasOneThrough(
             User::class,
             Sponsorship::class,
-            'animal_id', 
-            'id',        
-            'id',        
-            'user_id'    
+            'animal_id',
+            'id',
+            'id',
+            'user_id'
         )->where('sponsorships.status', 'active');
     }
 

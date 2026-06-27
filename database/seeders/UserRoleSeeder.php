@@ -12,6 +12,7 @@ class UserRoleSeeder extends Seeder
 {
     public function run(): void
     {
+        app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
         // تصفير الجداول لمنع تكرار البيانات أو حدوث تضارب في المفاتيح الأجنبية
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('users')->truncate();
@@ -23,9 +24,10 @@ class UserRoleSeeder extends Seeder
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
         // 1. إنشاء الأدوار داخل الحزمة مع تحديد جارد الـ API
+        $regularUserRole = Role::create(['name' => 'regular_user', 'guard_name' => 'api']);
         $superAdminRole = Role::create(['name' => 'SuperAdmin', 'guard_name' => 'api']);
-        $volunteerRole  = Role::create(['name' => 'Volunteer', 'guard_name' => 'api']);
-        $vetRole        = Role::create(['name' => 'Veterinarian', 'guard_name' => 'api']);
+        $volunteerRole  = Role::create(['name' => 'volunteer', 'guard_name' => 'api']);
+        $vetRole        = Role::create(['name' => 'veterinarian', 'guard_name' => 'api']);
 
         // ===================================================================
         // 2. إنشاء حساب الـ SuperAdmin وتعيين الدور له
@@ -40,6 +42,8 @@ class UserRoleSeeder extends Seeder
             'latitude'       => 33.51380000,
             'longitude'      => 36.27650000,
             'account_status' => 'active',
+            'email_verified_at'  => now(),
+            'two_factor_enabled' => true
         ]);
         $admin->assignRole($superAdminRole);
 
@@ -54,9 +58,11 @@ class UserRoleSeeder extends Seeder
             'country_code'   => '963',
             'phone_number'   => '944444444',
             'governorate'    => 'دمشق',
-            'latitude'       => 33.51500000, 
+            'latitude'       => 33.51500000,
             'longitude'      => 36.28000000,
             'account_status' => 'active',
+            'email_verified_at' => now(),
+            'two_factor_enabled' => true
         ]);
         $volunteerUser1->assignRole($volunteerRole);
 
@@ -66,9 +72,9 @@ class UserRoleSeeder extends Seeder
             'age'               => 22,
             'vol_type'          => 'field',
             'experience_level'  => 'beginner', // 👈 مبتدئ
-            'equipment'         => json_encode(['pet_carrier']), 
+            'equipment'         => json_encode(['pet_carrier']),
             'current_latitude'  => 33.51520000,  // قريب جداً من مركز البلاغ التجريبي
-            'current_longitude' => 36.28050000,  
+            'current_longitude' => 36.28050000,
             'is_approved'       => true,
             'approved_at'       => now(),
             'approved_by'       => $admin->id,
@@ -87,9 +93,11 @@ class UserRoleSeeder extends Seeder
             'country_code'   => '963',
             'phone_number'   => '988888888',
             'governorate'    => 'دمشق',
-            'latitude'       => 33.51800000, 
+            'latitude'       => 33.51800000,
             'longitude'      => 36.28500000,
             'account_status' => 'active',
+            'email_verified_at' => now(),
+            'two_factor_enabled' => true
         ]);
         $volunteerUser2->assignRole($volunteerRole);
 
@@ -99,8 +107,8 @@ class UserRoleSeeder extends Seeder
             'age'               => 27,
             'vol_type'          => 'field',
             'experience_level'  => 'intermediate', // 👈 متوسط
-            'equipment'         => json_encode(['first_aid_kit', 'pet_carrier']), 
-            'current_latitude'  => 33.51820000, 
+            'equipment'         => json_encode(['first_aid_kit', 'pet_carrier']),
+            'current_latitude'  => 33.51820000,
             'current_longitude' => 36.28550000,
             'is_approved'       => true,
             'approved_at'       => now(),
@@ -120,9 +128,11 @@ class UserRoleSeeder extends Seeder
             'country_code'   => '963',
             'phone_number'   => '977777777',
             'governorate'    => 'دمشق',
-            'latitude'       => 33.51200000, 
+            'latitude'       => 33.51200000,
             'longitude'      => 36.27200000,
             'account_status' => 'active',
+            'email_verified_at' => now(),
+            'two_factor_enabled' => true
         ]);
         $volunteerUser3->assignRole($volunteerRole);
 
@@ -132,8 +142,8 @@ class UserRoleSeeder extends Seeder
             'age'               => 32,
             'vol_type'          => 'field',
             'experience_level'  => 'advanced', // 👈 متقدم محترف الحالات الحرجة
-            'equipment'         => json_encode(['first_aid_kit', 'pet_net', 'heavy_gloves']), 
-            'current_latitude'  => 33.51250000, 
+            'equipment'         => json_encode(['first_aid_kit', 'pet_net', 'heavy_gloves']),
+            'current_latitude'  => 33.51250000,
             'current_longitude' => 36.27250000,
             'is_approved'       => true,
             'approved_at'       => now(),
@@ -156,6 +166,8 @@ class UserRoleSeeder extends Seeder
             'latitude'       => 36.20210000,
             'longitude'      => 37.13430000,
             'account_status' => 'active',
+            'email_verified_at'  => now(),
+            'two_factor_enabled' => true,
         ]);
         $vetUser->assignRole($vetRole);
 
@@ -187,6 +199,8 @@ class UserRoleSeeder extends Seeder
             'latitude'       => 34.73240000,
             'longitude'      => 36.71370000,
             'account_status' => 'active',
+            'email_verified_at'  => now(),
+            'two_factor_enabled' => true,
         ]);
 
         DB::table('regular_users')->insert([

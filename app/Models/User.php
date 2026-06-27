@@ -12,7 +12,7 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HasRoles;
-    
+
     protected $guard_name = 'api';
    protected $fillable = [
     'full_name',
@@ -84,7 +84,7 @@ protected $casts = [
 
     public function lostFoundPosts()
     {
-        return $this->hasMany(LostFound::class);
+        return $this->hasMany(LostFoundMatch::class);
     }
 
 

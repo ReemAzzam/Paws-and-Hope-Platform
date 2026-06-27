@@ -33,7 +33,7 @@ class RegisterController extends Controller
 
         try {
             $user = DB::transaction(function () use ($request) {
-                
+
                 $user = User::create([
                     'full_name'          => $request->full_name,
                     'email'              => $request->email,
@@ -41,7 +41,7 @@ class RegisterController extends Controller
                     'country_code'       => $request->country_code,
                     'phone_number'       => $request->phone_number,
                     'governorate'        => $request->governorate,
-                    'account_status'     => 'pending', 
+                    'account_status'     => 'pending',
                     'two_factor_enabled' => true,
                 ]);
 
