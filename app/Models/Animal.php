@@ -13,8 +13,8 @@ class Animal extends Model
     protected $fillable = [
         'name', 'type', 'gender', 'age', 'size', 'weight',
         'description', 'story', 'health_status', 'is_vaccinated',
-        'is_neutered', 'is_adoptable','availability_status', 'is_urgent',
-        'latitude', 'longitude', 'vet_id'
+        'is_neutered', 'is_adoptable', 'availability_status', 'is_urgent',
+        'latitude', 'longitude', 'vet_id', 'rescue_report_id'
     ];
 
     public function vet()
@@ -59,13 +59,12 @@ class Animal extends Model
         return $this->hasOneThrough(
             User::class,
             Sponsorship::class,
-            'animal_id', 
-            'id',        
-            'id',        
-            'user_id'    
+            'animal_id',
+            'id',
+            'id',
+            'user_id'
         )->where('sponsorships.status', 'active');
     }
-
 
     public function updates()
     {
@@ -76,5 +75,4 @@ class Animal extends Model
     {
         return $this->hasMany(CommunityPost::class, 'animal_id');
     }
-
 }

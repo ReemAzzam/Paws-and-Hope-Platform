@@ -5,20 +5,19 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-class AnimalPhoto extends Model
+class LostFoundPhoto extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'animal_id',
+        'lost_found_id',
         'photo_url',
         'is_main',
-        'caption',
         'order_number'
     ];
 
-    public function animal()
+    public function lostFound()
     {
-        return $this->belongsTo(Animal::class);
+        return $this->belongsTo(LostFound::class, 'lost_found_id');
     }
 }

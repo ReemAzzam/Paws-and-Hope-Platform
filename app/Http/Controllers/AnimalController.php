@@ -2,7 +2,6 @@
 
 namespace App\Http\Controllers;
 
-use App\Http\Controllers\Controller;
 use App\Models\Animal;
 use App\Models\Veterinarian;
 use App\Models\AnimalUpdate;
@@ -14,38 +13,75 @@ use Illuminate\Support\Facades\DB;
 
 class AnimalController extends Controller
 {
-/**
-     * Display a listing of animals with real-time filtering (Type, Size, Gender, Age).
+    /**
+     * Display a listing of animals with real-time filtering (Type, Size, Gender, Age, Weight, Urgent).
      */
     public function index(Request $request)
     {
         $query = Animal::with(['photos', 'vet']);
 
-        // 1. الفلترة حسب النوع (Type)
-        if ($request->filled('type')) {
-            $query->where('type', $request->type);
-        }
+        // Normalize inputs
+        $type   = strtolower($request->input('type'));
+        $gender = strtolower($request->input('gender'));
+        $status = strtolower($request->input('status'));
+        $size   = strtolower($request->input('size'));
+        $urgent = $request->input('urgent');
 
-        // 2. الفلترة حسب الحجم (Size)
-        if ($request->filled('size')) {
-            $query->where('size', $request->size);
-        }
+        // Allowed ENUM values
+        $allowedTypes   = ['dog', 'cat', 'bird', 'rabbit', 'other'];
+        $allowedGender  = ['male', 'female', 'unknown'];
+        $allowedStatus  = ['available', 'pending', 'adopted', 'sponsored', 'under_treatment'];
+        $allowedSizes   = ['small', 'medium', 'large'];
 
-        // 3. الفلترة حسب الجنس (Gender)
-        if ($request->filled('gender')) {
-            $query->where('gender', $request->gender);
-        }
+        // فلترة النوع
+        $query->when(in_array($type, $allowedTypes), function ($q) use ($type) {
+            $q->where('type', $type);
+        });
 
-        // 4. الفلترة حسب العمر (Age)
-        if ($request->filled('age')) {
-            $query->where('age', $request->age);
-        }
+        // فلترة الجنس
+        $query->when(in_array($gender, $allowedGender), function ($q) use ($gender) {
+            $q->where('gender', $gender);
+        });
 
+        // فلترة الحجم (دمج ميزتكِ بهيكل الفلترة المتقدم)
+        $query->when(in_array($size, $allowedSizes), function ($q) use ($size) {
+            $q->where('size', $size);
+        });
+
+        // فلترة حالة الحيوان
+        $query->when(in_array($status, $allowedStatus), function ($q) use ($status) {
+            $q->where('availability_status', $status);
+        });
+
+        // فلترة المستعجل
+        $query->when($urgent !== null, function ($q) use ($urgent) {
+            $q->where('is_urgent', filter_var($urgent, FILTER_VALIDATE_BOOLEAN));
+        });
+
+        // فلترة العمر (اختياري - حدود دنيا وعليا)
+        $query->when($request->filled('min_age'), function ($q) use ($request) {
+            $q->where('age', '>=', $request->min_age);
+        });
+
+        $query->when($request->filled('max_age'), function ($q) use ($request) {
+            $q->where('age', '<=', $request->max_age);
+        });
+
+        // فلترة الوزن (اختياري - حدود دنيا وعليا)
+        $query->when($request->filled('min_weight'), function ($q) use ($request) {
+            $q->where('weight', '>=', $request->min_weight);
+        });
+
+        $query->when($request->filled('max_weight'), function ($q) use ($request) {
+            $q->where('weight', '<=', $request->max_weight);
+        });
+
+        // تنفيذ الاستعلام مع الترقيم بـ 12 عنصر في الصفحة
         $animals = $query->latest()->paginate(12);
 
         return response()->json([
             'success' => true,
-            'data'    => $animals
+            'data' => $animals
         ]);
     }
 
@@ -72,7 +108,7 @@ class AnimalController extends Controller
             'is_urgent'           => 'boolean',
             'is_vaccinated'       => 'boolean',
             'is_neutered'         => 'boolean',
-            'photos.*'            => 'image|mimes:jpeg,png,jpg,gif|max:5120', 
+            'photos.*'            => 'image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
 
         if ($validator->fails()) {
@@ -91,7 +127,7 @@ class AnimalController extends Controller
                 AnimalPhoto::create([
                     'animal_id'    => $animal->id,
                     'photo_url'    => Storage::url($path),
-                    'is_main'      => $index === 0,   
+                    'is_main'      => $index === 0,
                     'order_number' => $index,
                 ]);
             }

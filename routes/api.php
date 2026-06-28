@@ -20,10 +20,8 @@ use App\Http\Controllers\AdoptionApplicationController;
 use App\Http\Controllers\AwarenessPostController;
 use App\Http\Controllers\GeneralConsultationController;
 use App\Http\Controllers\AdminVerificationController;
-use App\Http\Controllers\CommunityPostController
-;
-
-
+use App\Http\Controllers\CommunityPostController;
+use App\Http\Controllers\LostFoundController;
 
 /*
 |--------------------------------------------------------------------------
@@ -38,9 +36,9 @@ Route::prefix('v1')->group(function () {
     Route::post('/login',    [LoginController::class, 'login']);
 
     // Public Animals Routes (all can view)
-    Route::get('/view_animals', [AnimalController::class, 'index']);     
-    Route::get('/view_animal_details/{animal}', [AnimalController::class, 'show']); 
-    
+    Route::get('/animals', [AnimalController::class, 'index']);
+    Route::get('/animals/{animal}', [AnimalController::class, 'show']);
+
     // Public Rescue Reports
     Route::post('/rescue/reports', [RescueReportController::class, 'store']);
 
@@ -55,12 +53,20 @@ Route::prefix('v1')->group(function () {
     Route::get('/awareness-posts/{id}/likers', [AwarenessPostController::class, 'getPostLikers']);
     Route::get('/awareness-likes-count/{id}', [AwarenessPostController::class, 'getPostAwarenessLikesCount']);
 
-    // Public routes available to all authenticated users (View and Interact)
+    // Public Community Routes (View and Interact)
     Route::get('/community/posts', [CommunityPostController::class, 'index']);
     Route::get('/community/categories', [CommunityPostController::class, 'categories']);
     Route::post('/community/posts/{id}/toggle-like', [CommunityPostController::class, 'toggleLike']);
     Route::get('/community/posts/{id}/likes', [CommunityPostController::class, 'getPostLikesData']);
-    Route::get('/community/categories', [CommunityPostController::class, 'categories']);
+
+    // Public Lost & Found Routes
+    Route::prefix('lost-found')->group(function () {
+        Route::get('/', [LostFoundController::class, 'index']);
+        Route::get('/nearby', [LostFoundController::class, 'searchNearby']);
+        Route::get('/{lostFound}', [LostFoundController::class, 'show']);
+        Route::get('/{lostFound}/similar', [LostFoundController::class, 'similarPosts']);
+    });
+
     // ====================== Protected Routes (Sanctum) ======================
     Route::middleware('auth:sanctum')->group(function () {
 
@@ -99,32 +105,33 @@ Route::prefix('v1')->group(function () {
 
         Route::get('/admin/approved-counts', [AdminVerificationController::class, 'getApprovedCounts']);
 
+        // Protected Lost & Found Actions
+        Route::prefix('lost-found')->group(function () {
+            Route::post('/', [LostFoundController::class, 'store']);
+            Route::put('/{lostFound}/status', [LostFoundController::class, 'updateStatus']);
+            Route::delete('/{lostFound}', [LostFoundController::class, 'destroy']);
+        });
+
         // ====================== Emergency Rescue Reports Tracking ======================
         Route::prefix('rescue/reports')->group(function () {
             Route::get('/{id}/track', [RescueReportController::class, 'track']);
-            Route::patch('/{id}/status', [RescueReportController::class, 'updateStatus'])
-                ->middleware('role:Volunteer');
-            Route::patch('/{id}/accept', [RescueReportController::class, 'acceptReport'])
-                ->middleware('role:Volunteer');
-            Route::get('/{id}/consultations', [RescueConsultationController::class, 'getReportConsultations'])
-                ->middleware('role:Volunteer');
+            Route::patch('/{id}/status', [RescueReportController::class, 'updateStatus'])->middleware('role:Volunteer');
+            Route::patch('/{id}/accept', [RescueReportController::class, 'acceptReport'])->middleware('role:Volunteer');
+            Route::get('/{id}/consultations', [RescueConsultationController::class, 'getReportConsultations'])->middleware('role:Volunteer');
         });
 
         // ====================== Field Volunteer Live Actions ======================
-        Route::middleware(['auth:sanctum', 'role:volunteer'])->prefix('volunteer')->group(function () {
+        Route::middleware('role:volunteer')->prefix('volunteer')->group(function () {
             Route::post('/update-location', [RescueReportController::class, 'updateVolunteerLocation']);
             Route::get('/available-reports', [RescueReportController::class, 'availableReports']);
-
             Route::post('/backup-requests', [BackupRequestController::class, 'store']);
             Route::put('/backup-requests/{id}/accept', [BackupRequestController::class, 'acceptBackup']);
-
             Route::get('/backup-requests/available', [BackupRequestController::class, 'getAvailableBackupRequests']);
-
             Route::post('/rescue-consultations', [RescueConsultationController::class, 'store']);
         });
 
         // ====================== Professional Veterinarian Work Station ======================
-        Route::group(['middleware' => ['auth:sanctum', 'role:veterinarian']], function () {
+        Route::middleware('role:veterinarian')->group(function () {
             // Field Emergency Rescue Consultations
             Route::put('/rescue-consultations/{id}/answer', [RescueConsultationController::class, 'answer']);
             Route::get('/rescue-consultations/pending', [RescueConsultationController::class, 'getPendingConsultations']);  
@@ -149,15 +156,14 @@ Route::prefix('v1')->group(function () {
         // ====================== Independent Full Sponsorship System ======================
         Route::prefix('sponsorships')->group(function () {
             Route::post('/request', [SponsorshipController::class, 'requestSponsorship']);
-            Route::post('/{id}/renew', [SponsorshipController::class, 'renewPayment']); 
+            Route::post('/{id}/renew', [SponsorshipController::class, 'renewPayment']);
             Route::get('/my-sponsorships', [SponsorshipController::class, 'mySponsorships']);
-
             Route::get('/available-animals', [SponsorshipController::class, 'availableAnimalsForSponsorship']);
         });
 
         // ====================== SuperAdmin Central Command & Financial Dashboard ======================
         Route::middleware('role:admin|SuperAdmin|super_admin')->prefix('admin')->group(function () {
-            // Professional Professional Account Status Approvals & Verification
+            // Professional Account Status Approvals & Verification
             Route::patch('/veterinarians/{id}/approve', [AdminVerificationController::class, 'approveVeterinarian']);
             Route::patch('/volunteers/{id}/approve', [AdminVerificationController::class, 'approveVolunteer']);            
 
@@ -165,6 +171,7 @@ Route::prefix('v1')->group(function () {
             Route::patch('/veterinarians/{id}/block',   [AdminVerificationController::class, 'blockVeterinarian']);
             Route::patch('/volunteers/{id}/block',      [AdminVerificationController::class, 'blockVolunteer']);
 
+            // Community Posts Management
             Route::post('/community/posts', [CommunityPostController::class, 'store']);
             Route::post('/community/posts/{id}', [CommunityPostController::class, 'update']);
             Route::delete('/community/posts/{id}', [CommunityPostController::class, 'destroy']);
@@ -192,7 +199,6 @@ Route::prefix('v1')->group(function () {
             Route::post('/applications/{application}/approve', [AdoptionApplicationController::class, 'approve']);
             Route::post('/applications/{application}/reject', [AdoptionApplicationController::class, 'reject']);
             Route::patch('/applications/{application}/status', [AdoptionApplicationController::class, 'changeStatus']);
-
         });
 
         // ====================== Public/User Adoption Flow ======================
@@ -206,20 +212,16 @@ Route::prefix('v1')->group(function () {
         // ====================== Internal Animal Catalog Management ======================
         Route::prefix('animals')->group(function () {
             // Add new shelter animals
-            Route::post('/add', [AnimalController::class, 'store'])
-                ->middleware('role:SuperAdmin');
+            Route::post('/add', [AnimalController::class, 'store'])->middleware('role:SuperAdmin');
 
             // Update baseline animal profiling details
-            Route::put('/edit/{animal}', [AnimalController::class, 'update'])
-                ->middleware('role:SuperAdmin|Veterinarian');
+            Route::put('/edit/{animal}', [AnimalController::class, 'update'])->middleware('role:SuperAdmin|Veterinarian');
 
-            // Delete animal files
-            Route::delete('/delete/{animal}', [AnimalController::class, 'destroy'])
-                ->middleware('role:SuperAdmin');
+            // Delete animal files (only SuperAdmin can delete)
+            Route::delete('/{animal}', [AnimalController::class, 'destroy'])->middleware('role:SuperAdmin');
 
             // Purge specific media photos
-            Route::delete('/photos/{photo}', [AnimalController::class, 'deletePhoto'])
-                ->middleware('role:SuperAdmin|Veterinarian');
+            Route::delete('/photos/{photo}', [AnimalController::class, 'deletePhoto'])->middleware('role:SuperAdmin|Veterinarian');
         });
 
     });
