@@ -10,13 +10,20 @@ return new class extends Migration
     {
         Schema::create('animal_updates', function (Blueprint $table) {
             $table->id();
+            
+            // ربط التحديث بالحيوان مع الحذف التلقائي عند حذف الحيوان
             $table->foreignId('animal_id')->constrained('animals')->onDelete('cascade');
-            $table->string('title');                  
+            
+            // جعل العنوان اختياري لأن الطبيب قد يكتفي بكتابة الملاحظة الطبية مباشرة
+            $table->string('title')->nullable();                  
             $table->text('content');               
             $table->string('media_url')->nullable();  
             $table->enum('type', ['health', 'media', 'general'])->default('general');
             
             $table->timestamps();                 
+
+            // تحسين الأداء: إضافة فهرس مركب للاستعلام بسرعة عن تايم لاين حيوان معين مرتباً زمنياً
+            $table->index(['animal_id', 'created_at']);
         });
     }
 

@@ -19,7 +19,7 @@ class BackupRequestController extends Controller
         $user = Auth::user();
         $currentVolunteer = Volunteer::where('user_id', $user->id)->where('is_approved', true)->first();
         if (!$currentVolunteer) {
-            return response()->json(['success' => false, 'message' => 'عذراً، هذا الإجراء مخصص للمتطوعين المعتمدين فقط.'], 403);
+            return response()->json(['success' => false, 'message' => 'Access denied. Restricted to verified active volunteers.'], 403);
         }
 
         $request->validate([
@@ -31,25 +31,25 @@ class BackupRequestController extends Controller
 
         $backupRequest = BackupRequest::create([
             'rescue_report_id' => $request->rescue_report_id,
-            'volunteer_id' => $currentVolunteer->id, // المتطوع المستغيث
+            'volunteer_id' => $currentVolunteer->id, 
             'latitude' => $request->latitude,
             'longitude' => $request->longitude,
             'reason' => $request->reason,
             'status' => 'pending',
         ]);
 
-        $radiusInMeters = 5000; // نطاق 5 كيلومتر
+        $radiusInMeters = 5000; // 5 KM Radius
 
         $nearbyVolunteers = Volunteer::with('user')
             ->where('is_approved', true)
-            ->where('id', '!=', $currentVolunteer->id) // استثناء المتطوع الذي طلب المساعدة
+            ->where('id', '!=', $currentVolunteer->id) 
             ->whereRaw("ST_Distance_Sphere(point(current_longitude, current_latitude), point(?, ?)) <= ?", [
                 $request->longitude,
                 $request->latitude,
                 $radiusInMeters
             ])->get();
 
-        Log::info("🔍 فحص الاستغاثة الميدانية - عدد المتطوعين القريبين جغرافياً الذين تم العثور عليهم: " . $nearbyVolunteers->count());
+        Log::info("🔍 Emergency Backup Scan - Geocoded nearby volunteers found count: " . $nearbyVolunteers->count());
 
         foreach ($nearbyVolunteers as $volunteer) {
             $nearbyUser = $volunteer->user;
@@ -63,15 +63,15 @@ class BackupRequestController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إرسال نداء الاستغاثة بنجاح وإشعار المتطوعين القريبين منك في المحيط الجغرافي.',
+            'message' => 'Emergency backup dispatch broadcasted. Nearby radius units have been notified.',
             'data' => $backupRequest
         ], 201);
     }
 
     private function sendBackupNotification($fcmToken, $senderVolunteer, $reason)
     {
-        $senderName = $senderVolunteer->user->full_name ?? 'متطوع زميل';
-        Log::info("🚨 إشعار استغاثة ميداني: تم إرسال إشعار FCM إلى التوكن ({$fcmToken}). المحتوى: المتطوع ({$senderName}) يحتاج إلى دعم عاجل! السبب: {$reason}");
+        $senderName = $senderVolunteer->user->full_name ?? 'Fellow Volunteer';
+        Log::info("🚨 Field Backup Alert: FCM push transmitted to token ({$fcmToken}). Body: Volunteer ({$senderName}) requests immediate back-up! Reason: {$reason}");
     }
 
     public function acceptBackup($id)
@@ -81,54 +81,52 @@ class BackupRequestController extends Controller
         if (!$backupRequest) {
             return response()->json([
                 'success' => false,
-                'message' => 'طلب الدعم هذا غير موجود.'
+                'message' => 'Backup request trace not found.'
             ], 404);
         }
 
         if ($backupRequest->status !== 'pending') {
             return response()->json([
                 'success' => false,
-                'message' => 'تمت تلبية طلب الدعم هذا بالفعل أو تم إلغاؤه.'
+                'message' => 'This backup request has already been resolved or canceled.'
             ], 400);
         }
 
         $user = Auth::user();
-        $volunteerProfile = $user->volunteer; // جلب ملف المتطوع الحالي
+        $volunteerProfile = $user->volunteer; 
 
         $backupRequest->update([
             'status' => 'responded',
-            'accepted_volunteer_id' => $volunteerProfile->id // إذا كان الحقل موجوداً بالـ Migration
+            'accepted_volunteer_id' => $volunteerProfile->id 
         ]);
 
         return response()->json([
             'success' => true,
-            'message' => 'تم قبول تلبية نداء الاستغاثة، جاري توجيهك لموقع زميلك.',
+            'message' => 'Backup request accepted. Rerouting dispatch path to partner unit coords.',
             'data'    => $backupRequest
         ], 200);
     }
-
 
     public function getAvailableBackupRequests(Request $request)
     {
         $user = Auth::user();
 
-        // 1. التأكد أن المستخدم متطوع معتمد
         $volunteer = Volunteer::where('user_id', $user->id)->where('is_approved', true)->first();
         if (!$volunteer) {
             return response()->json([
                 'success' => false,
-                'message' => 'عذراً، هذا المسار مخصص للمتطوعين المعتمدين فقط.'
+                'message' => 'Access denied. Restricted to verified field volunteers.'
             ], 403);
         }
 
         $volLat = $volunteer->current_latitude;
         $volLng = $volunteer->current_longitude;
-        $radiusInMeters = 5000; // 5 كيلومتر
+        $radiusInMeters = 5000; 
 
         if (!$volLat || !$volLng) {
             return response()->json([
                 'success' => false,
-                'message' => 'يرجى تحديث موقعك الجغرافي أولاً لرؤية نداءات الاستغاثة القريبة.'
+                'message' => 'Please update your telemetry GPS coordinates to poll localized pending back-up calls.'
             ], 400);
         }
 
@@ -145,7 +143,7 @@ class BackupRequestController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم جلب نداءات الاستغاثة القريبة والمفتوحة بنجاح.',
+            'message' => 'Localized pending emergency logs compiled successfully.',
             'count' => $backupRequests->count(),
             'data' => $backupRequests
         ], 200);

@@ -9,15 +9,15 @@ class RoleSeeder extends Seeder
 {
     public function run(): void
     {
-        // مسح الكاش
+        // Reset cached roles and permissions
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // إنشاء الأدوار
-        Role::firstOrCreate(['name' => 'super_admin']);
-        Role::firstOrCreate(['name' => 'regular_user']);
-        Role::firstOrCreate(['name' => 'veterinarian']);
-        Role::firstOrCreate(['name' => 'volunteer']);
+        // Create unified application roles with api guard
+        Role::firstOrCreate(['name' => 'super_admin', 'guard_name' => 'api']);
+        Role::firstOrCreate(['name' => 'regular_user', 'guard_name' => 'api']);
+        Role::firstOrCreate(['name' => 'veterinarian', 'guard_name' => 'api']);
+        Role::firstOrCreate(['name' => 'volunteer', 'guard_name' => 'api']);
 
-        $this->command->info('✅ Roles seeded successfully!');
+        $this->command->info('✅ System roles seeded successfully!');
     }
 }

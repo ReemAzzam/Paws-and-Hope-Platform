@@ -26,14 +26,14 @@ class RescueConsultationController extends Controller
         if (!$volunteer) {
             return response()->json([
                 'success' => false,
-                'message' => 'عذراً، لا تمتلك ملف متطوع نشط لنظام الإنقاذ.'
+                'message' => 'Sorry, you do not have an active volunteer profile for the rescue system.'
             ], 403);
         }
 
         if ($report->volunteer_id !== $volunteer->id) {
             return response()->json([
                 'success' => false,
-                'message' => 'لا يمكنك طلب استشارة طبيّة لبلاغ لست مسؤولاً عنه ميدانياً.'
+                'message' => 'You cannot request a medical consultation for a report you are not assigned to field-wise.'
             ], 403);
         }
 
@@ -46,7 +46,7 @@ class RescueConsultationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إرسال طلب الاستشارة العاجلة بنجاح، وجاري تنبيه الأطباء المناوبين.',
+            'message' => 'The urgent consultation request has been successfully sent, and on-duty doctors are being alerted.',
             'data'    => $consultation->load('rescueReport')
         ], 201);
     }
@@ -62,22 +62,22 @@ class RescueConsultationController extends Controller
         if (!$consultation) {
             return response()->json([
                 'success' => false,
-                'message' => 'الاستشارة الطبية غير موجودة.'
+                'message' => 'The medical consultation was not found.'
             ], 404);
         }
 
         if ($consultation->status === 'answered') {
             return response()->json([
                 'success' => false,
-                'message' => 'تمت الإجابة على هذه الاستشارة مسبقاً من قبل طبيب آخر.'
+                'message' => 'This consultation has already been answered by another veterinarian.'
             ], 400);
         }
 
         $user = auth()->user();
-        $vet = $user->veterinarian; // بافتراض وجود علاقة veterinarian في موديل User لملف الطبيب
+        $vet = $user->veterinarian; 
 
         if (!$vet || !$vet->is_approved) {
-            return response()->json(['success' => false, 'message' => 'عذراً، يجب أن يكون حسابك الطبي معتمداً من قبل الإدارة لتتمكن من الإجابة.'], 403);
+            return response()->json(['success' => false, 'message' => 'Sorry, your medical account must be approved by the administration to be able to answer.'], 403);
         }
 
         $consultation->update([
@@ -88,7 +88,7 @@ class RescueConsultationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إرسال التوجيهات الطبية بنجاح إلى المتطوع في الميدان.',
+            'message' => 'Medical guidelines have been successfully sent to the volunteer in the field.',
             'data'    => $consultation->load(['volunteer.user', 'veterinarian'])
         ], 200);
     }
@@ -96,25 +96,25 @@ class RescueConsultationController extends Controller
     public function getPendingConsultations(Request $request)
     {
         $user = Auth::user();
-
         $vet = Veterinarian::where('user_id', $user->id)->where('is_approved', true)->first();
+        
         if (!$vet) {
             return response()->json([
                 'success' => false,
-                'message' => 'عذراً، هذا المسار مخصص للأطباء البيطريين المعتمدين فقط.'
+                'message' => 'Sorry, this route is restricted to approved veterinarians only.'
             ], 403);
         }
 
         $consultations = RescueConsultation::with('rescueReport')
             ->where('status', 'pending')
-            ->orderBy('created_at', 'asc') // الأقدم أولاً لسرعة الاستجابة
+            ->orderBy('created_at', 'asc') 
             ->get();
 
         return response()->json([
             'success' => true,
-            'message' => 'تم جلب الاستشارات الطبية المعلقة بنجاح.',
-            'count' => $consultations->count(),
-            'data' => $consultations
+            'message' => 'Pending medical consultations fetched successfully.',
+            'count'   => $consultations->count(),
+            'data'    => $consultations
         ], 200);
     }
 
@@ -124,7 +124,7 @@ class RescueConsultationController extends Controller
         if (!$report) {
             return response()->json([
                 'success' => false,
-                'message' => 'عذراً، البلاغ المطلوب غير موجود.'
+                'message' => 'Sorry, the requested report does not exist.'
             ], 404);
         }
 
@@ -135,9 +135,9 @@ class RescueConsultationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم جلب تاريخ الاستشارات الطبية للبلاغ بنجاح.',
-            'count' => $consultations->count(),
-            'data' => $consultations
+            'message' => 'Medical consultation history for the report fetched successfully.',
+            'count'   => $consultations->count(),
+            'data'    => $consultations
         ], 200);
     }
 }

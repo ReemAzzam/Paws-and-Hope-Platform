@@ -8,14 +8,14 @@ use Illuminate\Support\Facades\Hash;
 
 class SuperAdminSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
         $superAdmin = User::updateOrCreate(
             ['email' => 'admin@animalrescue.com'],
             [
                 'full_name'          => 'Super Administrator',
                 'password'           => Hash::make('password123'),
-                'country_code'       => '+963',
+                'country_code'       => '963',
                 'phone_number'       => '938337719',
                 'governorate'        => 'دمشق',
                 'account_status'     => 'active',
@@ -24,11 +24,9 @@ class SuperAdminSeeder extends Seeder
             ]
         );
 
-        // تعيين الدور
+        // Assign unified role to the super admin
         $superAdmin->assignRole('super_admin');
 
-        $this->command->info('✅ Super Admin created successfully!');
-        $this->command->info('Email: admin@animalrescue.com');
-        $this->command->info('Password: password123');
+        $this->command->info('✅ Super Admin established successfully!');
     }
 }

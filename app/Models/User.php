@@ -104,4 +104,20 @@ protected $casts = [
             'animal_id'    // المفتاح الخارجي في جدول الكفالات الموجه للحيوان
         )->where('sponsorships.status', 'active'); // ترشيح الكفالات النشطة فقط
     }
+
+    public function generalConsultations()
+    {
+        return $this->hasMany(GeneralConsultation::class, 'user_id');
+    }
+
+    public function communityPosts()
+    {
+        return $this->hasMany(CommunityPost::class, 'user_id');
+    }
+
+    public function likedPosts()
+    {
+        return $this->belongsToMany(CommunityPost::class, 'post_likes', 'user_id', 'post_id')
+                    ->withTimestamps();
+    }
 }

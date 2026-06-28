@@ -27,6 +27,7 @@ class ExpenseController extends Controller
                 'errors'  => $validator->errors()
             ], 422);
         }
+        
         try {
             $invoiceUrl = null;
             if ($request->hasFile('invoice_image')) {
@@ -45,14 +46,14 @@ class ExpenseController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم تسجيل وتوثيق الفاتورة المالية بنجاح وإدراجها في سجل المصروفات العامة.',
+                'message' => 'The financial invoice has been successfully recorded and added to the general expenses log.',
                 'data'    => $expense
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ غير متوقع أثناء معالجة تسجيل المصروف المالي.',
+                'message' => 'An unexpected error occurred while processing the expense registration.',
                 'error'   => $e->getMessage()
             ], 500);
         }

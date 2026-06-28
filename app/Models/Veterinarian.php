@@ -40,4 +40,14 @@ class Veterinarian extends Model
     {
         return $this->hasMany(RescueConsultation::class, 'veterinarian_id');
     }
+
+    public function awarenessPosts()
+    {
+        return $this->hasMany(AwarenessPost::class, 'veterinarian_id');
+    }
+
+    public function generalConsultations()
+    {
+        return $this->hasMany(GeneralConsultation::class, 'veterinarian_id');
+    }
 }

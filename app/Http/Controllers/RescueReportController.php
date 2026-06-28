@@ -64,7 +64,7 @@ class RescueReportController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم تسجيل بلاغ الطوارئ بنجاح، وجاري توجيه المنقذين.',
+                'message' => 'Emergency report registered successfully. Rescuers are being dispatched.',
                 'data'    => $report->load('images')
             ], 201);
 
@@ -74,7 +74,7 @@ class RescueReportController extends Controller
 
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء معالجة البلاغ، يرجى المحاولة مجدداً.',
+                'message' => 'An error occurred while processing the report, please try again.',
                 'error'   => $e->getMessage()
             ], 500);
         }
@@ -87,7 +87,7 @@ class RescueReportController extends Controller
         if (!$report) {
             return response()->json([
                 'success' => false,
-                'message' => 'بلاغ الإنقاذ هذا غير موجود في النظام.'
+                'message' => 'This rescue report does not exist in the system.'
             ], 404);
         }
 
@@ -130,7 +130,7 @@ class RescueReportController extends Controller
         if (!$report) {
             return response()->json([
                 'success' => false,
-                'message' => 'البلاغ غير موجود.'
+                'message' => 'The report does not exist.'
             ], 404);
         }
 
@@ -140,7 +140,7 @@ class RescueReportController extends Controller
         if ($report->volunteer_id && (!$volunteerProfile || $report->volunteer_id !== $volunteerProfile->id)) {
             return response()->json([
                 'success' => false,
-                'message' => 'عذراً، لا تمتلك الصلاحية لتحديث حالة هذا البلاغ لأنك لست المتطوع المسؤول عنه.'
+                'message' => 'Sorry, you do not have permission to update the status of this report because you are not the assigned volunteer.'
             ], 403);
         }
 
@@ -151,7 +151,7 @@ class RescueReportController extends Controller
             if (!$volunteerProfile) {
                 return response()->json([
                     'success' => false,
-                    'message' => 'عذراً، لا تمتلك ملف متطوع نشط.'
+                    'message' => 'Sorry, you do not have an active volunteer profile.'
                 ], 403);
             }
             $report->volunteer_id = $volunteerProfile->id; 
@@ -182,9 +182,9 @@ class RescueReportController extends Controller
                     'name'                => 'Animal_' . $report->id, 
                     'type'                => $mappedType,    
                     'health_status'       => $finalHealthStatus,  
-                    'availability_status' => 'under_treatment', // تم تعديل اسم الحقل ليطابق الميجريشن الحالي      
+                    'availability_status' => 'under_treatment',      
                     'description'         => $report->description,
-                    'story'               => "تم إنقاذه بنجاح عبر بلاغ طوارئ. تفاصيل الحالة الميدانية: " . $report->description,
+                    'story'               => "Successfully rescued via emergency report. Field status details: " . $report->description,
                     'image_path'          => $mainImage ? $mainImage->image_path : null,
                     'rescue_report_id'    => $report->id,         
                 ]);
@@ -196,7 +196,7 @@ class RescueReportController extends Controller
             \Log::error('Failed to resolve rescue report or create animal: ' . $e->getMessage());
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء حفظ التغييرات.',
+                'message' => 'An error occurred while saving changes.',
                 'error'   => $e->getMessage()
             ], 500);
         }
@@ -205,7 +205,7 @@ class RescueReportController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تحديث حالة البلاغ بنجاح، وتحويل الحالة إلى المنظمة.',
+            'message' => 'Report status updated successfully, and the case has been transferred to the organization.',
             'data'    => $report->load(['images', 'volunteer.user']) 
         ], 200);
     }
@@ -218,7 +218,7 @@ class RescueReportController extends Controller
         if (!$volunteerProfile) {
             return response()->json([
                 'success' => false,
-                'message' => 'عذراً، لم يتم العثور على ملف متطوع نشط لهذا الحساب.'
+                'message' => 'Sorry, no active volunteer profile was found for this account.'
             ], 403);
         }
 
@@ -231,14 +231,14 @@ class RescueReportController extends Controller
                 DB::rollBack(); 
                 return response()->json([
                     'success' => false,
-                    'message' => 'عذراً، البلاغ غير موجود.'
+                    'message' => 'Sorry, the report does not exist.'
                 ], 404);
             }
             if ($report->status !== 'reported') {
                 DB::rollBack(); 
                 return response()->json([
                     'success' => false,
-                    'message' => 'عذراً، تم استلام هذا البلاغ بالفعل من قبل متطوع آخر وهو قيد المعالجة.'
+                    'message' => 'Sorry, this report has already been accepted by another volunteer and is being processed.'
                 ], 400);
             }
 
@@ -253,7 +253,7 @@ class RescueReportController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم قبول المهمة بنجاح، أنت الآن في طريقك لإنقاذ الحالة.',
+                'message' => 'Task accepted successfully, you are now on your way to rescue the case.',
                 'data'    => [
                     'report_id' => $report->id,
                     'status'    => $report->status,
@@ -269,8 +269,8 @@ class RescueReportController extends Controller
             
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ ما أثناء معالجة قبول البلاغ، يرجى المحاولة مجدداً.',
-                "error" => $e->getMessage()
+                'message' => 'An error occurred while processing the report acceptance, please try again.',
+                "error"   => $e->getMessage()
             ], 500);
         }
     }
@@ -295,7 +295,7 @@ class RescueReportController extends Controller
         if (!$volunteerProfile) {
             return response()->json([
                 'success' => false,
-                'message' => 'عذراً، لا تمتلك حساب متطوع لتحديث موقعه.'
+                'message' => 'Sorry, you do not have a volunteer account to update its location.'
             ], 403);
         }
         
@@ -310,7 +310,7 @@ class RescueReportController extends Controller
         if (!$updated) {
             return response()->json([
                 'success' => false,
-                'message' => 'فشل تحديث الموقع، يرجى التأكد من صلاحيات الحساب.'
+                'message' => 'Failed to update location, please check account permissions.'
             ], 400);
         }
 
@@ -328,7 +328,7 @@ class RescueReportController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تحديث موقعك الميداني بنجاح.',
+            'message' => 'Your field location has been successfully updated.',
             'current_location' => [
                 'latitude'  => $request->current_latitude,
                 'longitude' => $request->current_longitude,
@@ -347,18 +347,18 @@ class RescueReportController extends Controller
         if (!$volunteer) {
             return response()->json([
                 'success' => false,
-                'message' => 'عذراً، هذا المسار مخصص للمتطوعين المعتمدين فقط.'
+                'message' => 'Sorry, this route is restricted to approved volunteers only.'
             ], 403);
         }
 
         $volLat = $volunteer->current_latitude;
         $volLng = $volunteer->current_longitude;
-        $radiusInMeters = 5000; // 5 كيلومتر
+        $radiusInMeters = 5000; 
 
         if (!$volLat || !$volLng) {
             return response()->json([
                 'success' => false,
-                'message' => 'يرجى تحديث موقعك الجغرافي (GPS) أولاً لعرض البلاغات القريبة.'
+                'message' => 'Please update your geographic location (GPS) first to view nearby reports.'
             ], 400);
         }
 
@@ -382,14 +382,14 @@ class RescueReportController extends Controller
                 return in_array($volunteer->experience_level, ['intermediate', 'advanced']);
             }
 
-            return true; // الحالات العادية مبروحة للجميع
+            return true; 
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'تم جلب البلاغات المتاحة المتطابقة مع موقعك وخبرتك بنجاح.',
-            'count' => $filteredReports->count(),
-            'data' => $filteredReports->values() // values() لإعادة ترقيم المصفوفة بعد الفلترة
+            'message' => 'Available reports matching your location and experience fetched successfully.',
+            'count'   => $filteredReports->count(),
+            'data'    => $filteredReports->values() 
         ], 200);
     }
 }

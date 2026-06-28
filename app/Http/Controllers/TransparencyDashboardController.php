@@ -10,9 +10,6 @@ use Illuminate\Support\Facades\Auth;
 
 class TransparencyDashboardController extends Controller
 {
-    /**
-     * جلب الملخص المالي العام للمستخدمين المسجلين (لوحة الشفافية)
-     */
     public function getFinancialSummary()
     {
         try {
@@ -29,12 +26,11 @@ class TransparencyDashboardController extends Controller
                 ->get()
                 ->map(function ($donation) {
                     return [
-                        'id' => $donation->id,
-                        'amount' => $donation->amount,
+                        'id'           => $donation->id,
+                        'amount'       => $donation->amount,
                         'gateway_type' => $donation->gateway_type,
-                        'created_at' => $donation->created_at,
-                        // للمستخدمين العاديين: يبقى الاسم مخفياً تماماً إذا كان التبرع سرياً
-                        'donor_name' => $donation->is_anonymous ? 'متبرع مجهول الهوية' : ($donation->user ? $donation->user->full_name : 'متبرع كريم'),
+                        'created_at'   => $donation->created_at,
+                        'donor_name'   => $donation->is_anonymous ? 'Anonymous Donor' : ($donation->user ? $donation->user->full_name : 'Generous Donor'),
                     ];
                 });
 
@@ -44,7 +40,7 @@ class TransparencyDashboardController extends Controller
 
             return response()->json([
                 'success' => true,
-                'data' => [
+                'data'    => [
                     'summary' => [
                         'total_donations' => $totalDonations,
                         'total_expenses'  => $totalExpenses,
@@ -58,16 +54,12 @@ class TransparencyDashboardController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء تحميل بيانات لوحة الشفافية المالية.',
+                'message' => 'An error occurred while loading financial transparency dashboard data.',
                 'error'   => $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * جلب التقارير المالية التفصيلية الشاملة بلوحة التحكم (SuperAdmin حصراً)
-     * مخرجات JSON كاملة ليتولى الفرونت-إند تصديرها وتنسيقها وملفات الـ PDF بناءً عليها
-     */
     public function getFinancialReportData()
     {
         try {
@@ -81,15 +73,14 @@ class TransparencyDashboardController extends Controller
                 ->get()
                 ->map(function ($donation) {
                     return [
-                        'id' => $donation->id,
-                        'amount' => $donation->amount,
-                        'gateway_type' => $donation->gateway_type,
+                        'id'                 => $donation->id,
+                        'amount'             => $donation->amount,
+                        'gateway_type'       => $donation->gateway_type,
                         'transaction_number' => $donation->transaction_number,
-                        // التعديل: تظهر هوية المتبرع الحقيقية للأدمن مع وسم (متبرع سري) لتدقيق الحسابات بوضوح
-                        'donor_name' => $donation->is_anonymous 
-                            ? ($donation->user ? $donation->user->full_name . ' (متبرع سري)' : 'متبرع سري') 
-                            : ($donation->user ? $donation->user->full_name : 'متبرع كريم'),
-                        'created_at' => $donation->created_at->format('Y-m-d H:i'),
+                        'donor_name'         => $donation->is_anonymous 
+                            ? ($donation->user ? $donation->user->full_name . ' (Anonymous Donor)' : 'Anonymous Donor') 
+                            : ($donation->user ? $donation->user->full_name : 'Generous Donor'),
+                        'created_at'         => $donation->created_at->format('Y-m-d H:i'),
                     ];
                 });
 
@@ -97,21 +88,21 @@ class TransparencyDashboardController extends Controller
                 ->get()
                 ->map(function ($expense) {
                     return [
-                        'id' => $expense->id,
-                        'title' => $expense->title,
-                        'category' => $expense->category,
-                        'amount' => $expense->amount,
+                        'id'            => $expense->id,
+                        'title'         => $expense->title,
+                        'category'      => $expense->category,
+                        'amount'        => $expense->amount,
                         'invoice_image' => $expense->invoice_image_path,
-                        'created_at' => $expense->created_at->format('Y-m-d H:i'),
+                        'created_at'    => $expense->created_at->format('Y-m-d H:i'),
                     ];
                 });
 
             return response()->json([
                 'success' => true,
                 'report_metadata' => [
-                    'organization' => 'منصة Paws & Hope لإنقاذ ورعاية الحيوانات',
+                    'organization' => 'Paws & Hope Animal Rescue and Care Platform',
                     'generated_at' => now()->format('Y-m-d H:i'),
-                    'currency'     => 'ل.س'
+                    'currency'     => 'SYP'
                 ],
                 'summary' => [
                     'total_donations' => $totalDonations,
@@ -125,15 +116,12 @@ class TransparencyDashboardController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء إعداد بيانات التقرير المالي.',
+                'message' => 'An error occurred while preparing financial report data.',
                 'error'   => $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * جلب سجل المصروفات العامة للمستخدمين المسجلين
-     */
     public function getPublicExpenses()
     {
         try {
@@ -147,15 +135,12 @@ class TransparencyDashboardController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء جلب سجل المصروفات العامة.',
+                'message' => 'An error occurred while retrieving public expenses log.',
                 'error'   => $e->getMessage()
             ], 500);
         }
     }
 
-    /**
-     * جلب السجل الشخصي لتبرعات المستخدم المسجل الحالي
-     */
     public function getMyDonations()
     {
         try {
@@ -171,7 +156,7 @@ class TransparencyDashboardController extends Controller
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ أثناء جلب سجل تبرعاتك الشخصي.',
+                'message' => 'An error occurred while retrieving your personal donations history.',
                 'error'   => $e->getMessage()
             ], 500);
         }

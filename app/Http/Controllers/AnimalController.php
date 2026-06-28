@@ -1,46 +1,56 @@
 <?php
 
-namespace App\Http\Controllers\Api;
+namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Animal;
+use App\Models\Veterinarian;
+use App\Models\AnimalUpdate;
 use App\Models\AnimalPhoto;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Support\Facades\DB;
 
 class AnimalController extends Controller
 {
-    /**
-     * عرض قائمة الحيوانات مع الفلترة اللحظية
+/**
+     * Display a listing of animals with real-time filtering (Type, Size, Gender, Age).
      */
     public function index(Request $request)
     {
         $query = Animal::with(['photos', 'vet']);
 
-        if ($request->has('type')) {
+        // 1. الفلترة حسب النوع (Type)
+        if ($request->filled('type')) {
             $query->where('type', $request->type);
         }
-        if ($request->has('gender')) {
+
+        // 2. الفلترة حسب الحجم (Size)
+        if ($request->filled('size')) {
+            $query->where('size', $request->size);
+        }
+
+        // 3. الفلترة حسب الجنس (Gender)
+        if ($request->filled('gender')) {
             $query->where('gender', $request->gender);
         }
-        if ($request->has('status')) {
-            $query->where('availability_status', $request->status);
-        }
-        if ($request->has('urgent')) {
-            $query->where('is_urgent', true);
+
+        // 4. الفلترة حسب العمر (Age)
+        if ($request->filled('age')) {
+            $query->where('age', $request->age);
         }
 
         $animals = $query->latest()->paginate(12);
 
         return response()->json([
             'success' => true,
-            'data' => $animals
+            'data'    => $animals
         ]);
     }
 
     /**
-     * إضافة حيوان جديد للنظام (يدوياً من الأدمن أو النظام)
+     * Store a newly created animal in the system.
      */
     public function store(Request $request)
     {
@@ -89,13 +99,13 @@ class AnimalController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم إضافة الحيوان إلى السجلات بنجاح.',
+            'message' => 'Animal profile successfully added to records.',
             'data'    => $animal->load('photos')
         ], 201);
     }
 
     /**
-     * عرض تفاصيل حيوان محدد
+     * Display the specified animal details.
      */
     public function show(Animal $animal)
     {
@@ -108,15 +118,30 @@ class AnimalController extends Controller
     }
 
     /**
-     * تحديث بيانات الحيوان
+     * Update the specified animal profile in storage.
      */
     public function update(Request $request, Animal $animal)
     {
+        $user = $request->user();
+        $currentVetId = null;
+
+        if ($user->hasRole('Veterinarian')) {
+            $vet = Veterinarian::where('user_id', $user->id)->where('is_approved', true)->first();
+            
+            if (!$vet) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access denied. Your professional medical account must be verified and active to modify health statuses.'
+                ], 403);
+            }
+            $currentVetId = $vet->id;
+        }
+
         $validator = Validator::make($request->all(), [
             'type'                => 'in:dog,cat,bird,rabbit,other',
             'name'                => 'nullable|string|max:100',
             'age'                 => 'nullable|integer|min:0',
-            'size'                => 'nullable|in:small,medium,large',
+            'size'                => 'in:small,medium,large',
             'gender'              => 'in:male,female,unknown',
             'weight'              => 'nullable|numeric|min:0',
             'health_status'       => 'in:healthy,sick,injured,critical,recovering',
@@ -127,6 +152,8 @@ class AnimalController extends Controller
             'is_urgent'           => 'boolean',
             'is_vaccinated'       => 'boolean',
             'is_neutered'         => 'boolean',
+            'health_update_title' => 'nullable|string|max:255',
+            'health_update_note'  => 'nullable|string', 
         ]);
 
         if ($validator->fails()) {
@@ -136,30 +163,79 @@ class AnimalController extends Controller
             ], 422);
         }
 
-        $animal->update($request->all());
+        $oldHealthStatus = $animal->health_status;
+        $oldAvailability = $animal->availability_status;
 
-        if ($request->hasFile('photos')) {
-            foreach ($request->file('photos') as $index => $photo) {
-                $path = $photo->store('animals/' . $animal->id, 'public');
+        $updateData = $request->all();
 
-                AnimalPhoto::create([
-                    'animal_id'    => $animal->id,
-                    'photo_url'    => Storage::url($path),
-                    'is_main'      => false,
-                    'order_number' => $animal->photos()->count() + $index,
-                ]);
-            }
+        if ($currentVetId) {
+            $updateData['vet_id'] = $currentVetId;
         }
 
-        return response()->json([
-            'success' => true,
-            'message' => 'تم تحديث بيانات الحيوان بنجاح.',
-            'data'    => $animal->load('photos')
-        ]);
+        DB::beginTransaction();
+        try {
+            $animal->update($updateData);
+
+            if ($request->hasFile('photos')) {
+                foreach ($request->file('photos') as $index => $photo) {
+                    $path = $photo->store('animals/' . $animal->id, 'public');
+
+                    AnimalPhoto::create([
+                        'animal_id'    => $animal->id,
+                        'photo_url'    => Storage::url($path),
+                        'is_main'      => false,
+                        'order_number' => $animal->photos()->count() + $index,
+                    ]);
+                }
+            }
+
+            $healthChanged = ($oldHealthStatus !== $animal->health_status);
+            $statusChanged = ($oldAvailability !== $animal->availability_status);
+
+            if ($healthChanged || $statusChanged || $request->filled('health_update_note')) {
+
+                $title = $request->input('health_update_title') ?? 'Medical status report from supervising veterinarian';
+                
+                $content = "The attending veterinarian has updated the animal medical profile.\n";
+                if ($healthChanged) {
+                    $content .= "• Current Health Status: " . $animal->health_status . " (Was: " . $oldHealthStatus . ").\n";
+                }
+                if ($statusChanged) {
+                    $content .= "• Shelter Availability Status: " . $animal->availability_status . ".\n";
+                }
+                if ($request->filled('health_update_note')) {
+                    $content .= "• Vet Notes: " . $request->health_update_note;
+                }
+
+                AnimalUpdate::create([
+                    'animal_id' => $animal->id,
+                    'title'     => $title,
+                    'content'   => $content,
+                    'type'      => 'health', 
+                    'media_url' => $animal->photos()->first()?->photo_url 
+                ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Animal details updated successfully. Health report posted to sponsor timeline.',
+                'data'    => $animal->load('photos')
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json([
+                'success' => false,
+                'message' => 'An unexpected error occurred during profile updates.',
+                'error'   => $e->getMessage()
+            ], 500);
+        }
     }
 
     /**
-     * حذف الحيوان نهائياً وحذف صوره من السيرفر
+     * Remove the specified animal and associated assets from storage.
      */
     public function destroy(Animal $animal)
     {
@@ -173,12 +249,12 @@ class AnimalController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حذف سجل الحيوان وصوره بنجاح.'
+            'message' => 'Animal logs and associated media assets deleted successfully.'
         ]);
     }
 
     /**
-     * حذف صورة فردية للحيوان
+     * Delete a single isolated animal image.
      */
     public function deletePhoto(AnimalPhoto $photo)
     {
@@ -188,7 +264,7 @@ class AnimalController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حذف الصورة بنجاح.'
+            'message' => 'Media asset dropped successfully.'
         ]);
     }
 }

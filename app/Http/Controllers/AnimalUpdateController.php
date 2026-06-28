@@ -10,7 +10,6 @@ use Illuminate\Http\JsonResponse;
 
 class AnimalUpdateController extends Controller
 {
-
     public function store(Request $request, $animalId): JsonResponse
     {
         $animal = Animal::findOrFail($animalId);
@@ -19,7 +18,7 @@ class AnimalUpdateController extends Controller
             'title' => 'required|string|max:255',
             'content' => 'required|string',
             'type' => 'required|in:health,media,general',
-            'media_file' => 'nullable|file|mimes:jpeg,png,jpg,mp4,mov|max:15360', // حد أقصى 15 ميغا لدعم الفيديوهات القصيرة والصور
+            'media_file' => 'nullable|file|mimes:jpeg,png,jpg,mp4,mov|max:15360', 
         ]);
 
         if ($validator->fails()) {
@@ -44,14 +43,14 @@ class AnimalUpdateController extends Controller
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم إضافة التحديث الحصري للحيوان بنجاح وعرضه في تايم لاين الكفيل.',
+                'message' => 'Exclusive timeline log successfully posted and linked to active sponsor tracks.',
                 'update' => $update
             ], 201);
 
         } catch (\Exception $e) {
             return response()->json([
                 'success' => false,
-                'message' => 'حدث خطأ غير متوقع أثناء حفظ التحديث.',
+                'message' => 'An error occurred while compiling the updates trace.',
                 'error' => $e->getMessage()
             ], 500);
         }

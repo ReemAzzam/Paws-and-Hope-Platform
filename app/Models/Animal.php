@@ -13,7 +13,7 @@ class Animal extends Model
     protected $fillable = [
         'name', 'type', 'gender', 'age', 'size', 'weight',
         'description', 'story', 'health_status', 'is_vaccinated',
-        'is_neutered', 'is_adoptable', 'is_urgent',
+        'is_neutered', 'is_adoptable','availability_status', 'is_urgent',
         'latitude', 'longitude', 'vet_id'
     ];
 
@@ -71,4 +71,10 @@ class Animal extends Model
     {
         return $this->hasMany(AnimalUpdate::class);
     }
+
+    public function communityPosts()
+    {
+        return $this->hasMany(CommunityPost::class, 'animal_id');
+    }
+
 }
