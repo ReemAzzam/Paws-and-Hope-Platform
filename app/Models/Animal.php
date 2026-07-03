@@ -37,6 +37,11 @@ class Animal extends Model
         return $this->hasMany(BehavioralAttribute::class);
     }
 
+    public function medicalConditions()
+    {
+       return $this->hasMany(AnimalMedicalCondition::class);
+    }
+
     public function adoptionApplications()
     {
         return $this->hasMany(AdoptionApplication::class);

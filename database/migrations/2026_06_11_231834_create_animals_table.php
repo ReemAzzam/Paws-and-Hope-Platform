@@ -7,13 +7,13 @@ use Illuminate\Support\Facades\Schema;
 return new class extends Migration {
  public function up()
 {
-    
+
     Schema::create('animals', function (Blueprint $table) {
         $table->id();
         $table->string('name')->nullable();
         $table->enum('type', ['dog', 'cat', 'bird', 'rabbit', 'other']);
         $table->enum('gender', ['male', 'female', 'unknown'])->default('unknown');
-        $table->integer('age')->nullable(); 
+        $table->integer('age')->nullable();
         $table->enum('size', ['small', 'medium', 'large'])->nullable();
         $table->decimal('weight', 5, 2)->nullable();
 
@@ -31,7 +31,7 @@ return new class extends Migration {
         $table->decimal('longitude', 11, 8)->nullable();
 
         $table->unsignedBigInteger('vet_id')->nullable();
-        $table->unsignedBigInteger('rescue_report_id')->nullable(); 
+        $table->unsignedBigInteger('rescue_report_id')->nullable();
 
         $table->timestamps();
         $table->softDeletes();

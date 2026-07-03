@@ -9,10 +9,14 @@ use App\Models\Sponsorship;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
+use App\Events\SendNotificationEvent;
+use App\Support\NotificationTemplates;
+use Illuminate\Support\Facades\Log;
+
 
 class AdoptionApplicationController extends Controller
 {
- 
+
     public function store(Request $request)
     {
         // 1. التحقق من البيانات القادمة من الطلب (Request Validation)
@@ -72,6 +76,28 @@ class AdoptionApplicationController extends Controller
             'application_details' => $applicationDetails, // الحقل الذي كان يسبب المشكلة تم ملؤه هنا
             'status'              => 'pending',
         ]);
+
+
+       // إشعار الكفيل إذا كان الحيوان مكفولاً
+       $activeSponsorship = Sponsorship::with('sponsor')
+          ->where('animal_id', $animal->id)
+          ->where('status', 'active')
+          ->first();
+
+       if ($activeSponsorship) {
+
+       $template = NotificationTemplates::newAdoptionRequest(
+         $animal,
+         $application
+        );
+
+        SendNotificationEvent::dispatch(
+          $activeSponsorship->sponsor,
+          $template['title'],
+          $template['body'],
+          $template['data']
+        );
+       }
 
         return response()->json([
             'success' => true,
@@ -156,26 +182,47 @@ class AdoptionApplicationController extends Controller
             $animal = $application->animal;
             $animal->update(['availability_status' => 'adopted']);
 
-            $activeSponsorship = Sponsorship::where('animal_id', $animal->id)
+            // إشعار مقدم الطلب
+            $template = NotificationTemplates::adoptionApproved(
+                $animal,
+                $application
+            );
+
+            SendNotificationEvent::dispatch(
+                $application->user,
+                $template['title'],
+                $template['body'],
+                $template['data']
+            );
+
+            // إشعار الكفيل بانتهاء الكفالة
+            $activeSponsorship = Sponsorship::with('sponsor')
+                ->where('animal_id', $animal->id)
                 ->where('status', 'active')
                 ->first();
 
-            $sponsorshipMessage = "";
             if ($activeSponsorship) {
+
+                $template = NotificationTemplates::sponsorshipCompleted(
+                    $animal
+                );
+
+                SendNotificationEvent::dispatch(
+                    $activeSponsorship->sponsor,
+                    $template['title'],
+                    $template['body'],
+                    $template['data']   );
+
+                // إنهاء الكفالة
                 $activeSponsorship->update([
-                    'status' => 'cancelled',
-                    'notes' => ($activeSponsorship->notes ? $activeSponsorship->notes . "\n" : "") . 
-                               "[نظام أتمتة الـ SRS]: تم تحرير الحيوان من الكفالة بنجاح بسبب انتقاله إلى منزل دائم وتبنيه تبنياً كاملاً من قبل مستخدم آخر بتاريخ " . now()->toDateString() . "."
+                    'status' => 'completed'
                 ]);
-
-                $sponsorshipMessage = " وتم تحرير الحيوان من الكفالة النشطة وتنبيه الكفيل بنجاح.";
-            }
-
+             }
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم قبول طلب التبني بنجاح' . $sponsorshipMessage,
+                'message' => 'تم قبول طلب التبني بنجاح' ,
                 'data'    => $application->load('animal')
             ]);
 
@@ -208,6 +255,17 @@ class AdoptionApplicationController extends Controller
             'approved_by' => $request->user()->id,
         ]);
 
+        $template = NotificationTemplates::adoptionRejected(
+            $application->animal,
+            $application
+        );
+
+        SendNotificationEvent::dispatch(
+            $application->user,
+            $template['title'],
+            $template['body'],
+            $template['data']
+        );
         return response()->json([
             'success' => true,
             'message' => 'تم رفض طلب التبني.',

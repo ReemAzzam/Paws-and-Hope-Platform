@@ -8,6 +8,9 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
+use App\Models\User;
+use App\Events\SendNotificationEvent;
+use App\Support\NotificationTemplates;
 
 class DonationController extends Controller
 {
@@ -17,8 +20,8 @@ class DonationController extends Controller
             'amount'             => 'required|numeric|min:500',
             'gateway_type'       => 'required|in:al_haram,al_fouad,syriatel_cash,mtn_cash',
             'transaction_number' => 'required|string|max:100|digits:12',
-            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg|max:10240', 
-            'is_anonymous'       => 'nullable|boolean', 
+            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg|max:10240',
+            'is_anonymous'       => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -27,7 +30,7 @@ class DonationController extends Controller
                 'errors'  => $validator->errors()
             ], 422);
         }
-        
+
         $exists = Donation::where('transaction_number', $request->transaction_number)->exists();
         if ($exists) {
             return response()->json([
@@ -53,9 +56,26 @@ class DonationController extends Controller
                 'gateway_type'        => $request->gateway_type,
                 'transaction_number'  => $request->transaction_number,
                 'receipt_image_path'  => $receiptUrl,
-                'status'              => 'pending', 
+                'status'              => 'pending',
                 'is_anonymous'        => $request->has('is_anonymous') ? (bool)$request->is_anonymous : false,
             ]);
+
+            $admins = User::role(['admin', 'SuperAdmin'])->get();
+
+            foreach ($admins as $admin) {
+
+                $notification = NotificationTemplates::newDonation(
+                    Auth::user()?->full_name ?? 'Anonymous User',
+                    $donation->amount
+                );
+
+                event(new SendNotificationEvent(
+                $admin,
+                $notification['title'],
+                $notification['body'],
+                $notification['data']
+            ));
+            }
 
             return response()->json([
                 'success' => true,

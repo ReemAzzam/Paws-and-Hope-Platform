@@ -29,6 +29,10 @@ class RescueReport extends Model
         return $this->belongsTo(User::class, 'user_id');
     }
 
+    public function user(){
+        return $this->belongsTo(User::class, 'user_id');
+    }
+
     public function volunteer()
     {
         return $this->belongsTo(Volunteer::class, 'volunteer_id');

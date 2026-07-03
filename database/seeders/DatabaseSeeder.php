@@ -14,12 +14,15 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            RoleSeeder::class,          // 1. تثبيت الأدوار الموحدة أولاً
-            SuperAdminSeeder::class,    // 2. إنشاء حساب الآدمن الفردي والأساسي
-            UserRoleSeeder::class,      // 3. توزيع المتطوعين وباقي المستخدمين والربط بالأدمن
+            UserRoleSeeder::class,  // 3. توزيع المتطوعين وباقي المستخدمين والربط بالأدمن
             AnimalSeeder::class,        // 4. رفع الحيوانات التجريبية وصورها
+            VaccinationSeeder::class,
+            BehavioralAttributeSeeder::class,
+            AnimalMedicalConditionSeeder::class, // 5. رفع الحالات الطبية التجريبية
             QuizQuestionsSeeder::class, // 5. تجهيز بنك أسئلة الكويز
             PostCategorySeeder::class,  // 6. تحميل تصنيفات منشوارات المجتمع
+            LostFoundSeeder::class,      // 7. رفع منشورات Lost & Found التجريبية
+
         ]);
 
         /*User::factory()->create([

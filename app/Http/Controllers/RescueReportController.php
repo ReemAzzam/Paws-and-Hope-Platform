@@ -15,6 +15,9 @@ use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\Auth;
+use App\Support\NotificationTemplates;
+use App\Events\SendNotificationEvent;
+use App\Models\User;
 
 class RescueReportController extends Controller
 {
@@ -23,28 +26,28 @@ class RescueReportController extends Controller
         $request->validate([
             'latitude'         => 'required|numeric|between:-90,90',
             'longitude'        => 'required|numeric|between:-180,180',
-            'location_address' => 'required|string|max:255', 
+            'location_address' => 'required|string|max:255',
             'severity_level'   => 'required|in:normal,urgent,critical',
             'animal_type'      => 'required|string|max:50',
             'health_status'    => 'required|in:bleeding,fracture,poisoning,other',
             'description'      => 'nullable|string|max:1000',
-            'images'           => 'required|array|min:1', 
-            'images.*'         => 'image|mimes:jpeg,png,jpg|max:15360', 
+            'images'           => 'required|array|min:1',
+            'images.*'         => 'image|mimes:jpeg,png,jpg|max:15360',
         ]);
 
         DB::beginTransaction();
 
         try {
             $report = RescueReport::create([
-                'user_id'          => auth()->id(), 
+                'user_id'          => auth()->id(),
                 'latitude'         => $request->latitude,
                 'longitude'        => $request->longitude,
-                'location_address' => $request->location_address, 
+                'location_address' => $request->location_address,
                 'severity_level'   => $request->severity_level,
                 'animal_type'      => $request->animal_type,
                 'health_status'    => $request->health_status,
                 'description'      => $request->description,
-                'status'           => 'reported', 
+                'status'           => 'reported',
             ]);
 
             if ($request->hasFile('images')) {
@@ -58,6 +61,32 @@ class RescueReportController extends Controller
                 }
             }
 
+            $template = NotificationTemplates::newRescueReport($report);
+
+            // المتطوعون ضمن 5 كم
+            $nearbyVolunteers = User::role('volunteer')
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->get()
+                ->filter(function ($volunteer) use ($report) {
+
+                    return $this->calculateDistance(
+                        $report->latitude,
+                        $report->longitude,
+                        $volunteer->latitude,
+                        $volunteer->longitude
+                    ) <= 5;
+                });
+
+            foreach ($nearbyVolunteers as $volunteer) {
+
+                SendNotificationEvent::dispatch(
+                    $volunteer,
+                    $template['title'],
+                    $template['body'],
+                    $template['data']
+                );
+            }
             DB::commit();
 
             ProcessRescueReportAssignment::dispatch($report);
@@ -92,7 +121,7 @@ class RescueReportController extends Controller
         }
 
         $statusTimeline = [
-            'reported'   => true, 
+            'reported'   => true,
             'dispatched' => in_array($report->status, ['dispatched', 'on_site', 'in_clinic', 'resolved']),
             'on_site'    => in_array($report->status, ['on_site', 'in_clinic', 'resolved']),
             'in_clinic'  => in_array($report->status, ['in_clinic', 'resolved']),
@@ -154,12 +183,23 @@ class RescueReportController extends Controller
                     'message' => 'Sorry, you do not have an active volunteer profile.'
                 ], 403);
             }
-            $report->volunteer_id = $volunteerProfile->id; 
+            $report->volunteer_id = $volunteerProfile->id;
         }
 
         DB::beginTransaction();
         try {
             $report->save();
+            $template = NotificationTemplates::rescueStatusUpdated(
+                    $report,
+                    $request->status
+                );
+
+                SendNotificationEvent::dispatch(
+                    $report->user,
+                    $template['title'],
+                    $template['body'],
+                    $template['data']
+                );
 
             if ($request->status === 'resolved' && $oldStatus !== 'resolved') {
 
@@ -171,22 +211,22 @@ class RescueReportController extends Controller
 
                 $reportHealth = strtolower($report->health_status);
                 $allowedHealth = ['healthy', 'sick', 'injured', 'critical', 'recovering'];
-                
-                $finalHealthStatus = in_array($reportHealth, $allowedHealth) 
-                                     ? $reportHealth 
-                                     : 'injured'; 
+
+                $finalHealthStatus = in_array($reportHealth, $allowedHealth)
+                                     ? $reportHealth
+                                     : 'injured';
 
                 $mainImage = $report->images()->first();
 
                 \App\Models\Animal::create([
-                    'name'                => 'Animal_' . $report->id, 
-                    'type'                => $mappedType,    
-                    'health_status'       => $finalHealthStatus,  
-                    'availability_status' => 'under_treatment',      
+                    'name'                => 'Animal_' . $report->id,
+                    'type'                => $mappedType,
+                    'health_status'       => $finalHealthStatus,
+                    'availability_status' => 'under_treatment',
                     'description'         => $report->description,
                     'story'               => "Successfully rescued via emergency report. Field status details: " . $report->description,
                     'image_path'          => $mainImage ? $mainImage->image_path : null,
-                    'rescue_report_id'    => $report->id,         
+                    'rescue_report_id'    => $report->id,
                 ]);
             }
 
@@ -206,14 +246,14 @@ class RescueReportController extends Controller
         return response()->json([
             'success' => true,
             'message' => 'Report status updated successfully, and the case has been transferred to the organization.',
-            'data'    => $report->load(['images', 'volunteer.user']) 
+            'data'    => $report->load(['images', 'volunteer.user'])
         ], 200);
     }
 
     public function acceptReport($id)
     {
         $user = auth()->user();
-        $volunteerProfile = $user->volunteer; 
+        $volunteerProfile = $user->volunteer;
 
         if (!$volunteerProfile) {
             return response()->json([
@@ -228,14 +268,14 @@ class RescueReportController extends Controller
             $report = RescueReport::lockForUpdate()->find($id);
 
             if (!$report) {
-                DB::rollBack(); 
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'Sorry, the report does not exist.'
                 ], 404);
             }
             if ($report->status !== 'reported') {
-                DB::rollBack(); 
+                DB::rollBack();
                 return response()->json([
                     'success' => false,
                     'message' => 'Sorry, this report has already been accepted by another volunteer and is being processed.'
@@ -246,6 +286,14 @@ class RescueReportController extends Controller
                 'status'       => 'dispatched',
                 'volunteer_id' => $volunteerProfile->id,
             ]);
+
+            $template = NotificationTemplates::rescueAccepted($report);
+            SendNotificationEvent::dispatch(
+                $report->user,
+                $template['title'],
+                $template['body'],
+                $template['data']
+            );
 
             DB::commit();
 
@@ -266,7 +314,7 @@ class RescueReportController extends Controller
 
         } catch (\Exception $e) {
             DB::rollBack();
-            
+
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while processing the report acceptance, please try again.',
@@ -298,7 +346,7 @@ class RescueReportController extends Controller
                 'message' => 'Sorry, you do not have a volunteer account to update its location.'
             ], 403);
         }
-        
+
         $updated = DB::table('volunteers')
             ->where('user_id', $user->id)
             ->update([
@@ -353,7 +401,7 @@ class RescueReportController extends Controller
 
         $volLat = $volunteer->current_latitude;
         $volLng = $volunteer->current_longitude;
-        $radiusInMeters = 5000; 
+        $radiusInMeters = 5000;
 
         if (!$volLat || !$volLng) {
             return response()->json([
@@ -382,14 +430,14 @@ class RescueReportController extends Controller
                 return in_array($volunteer->experience_level, ['intermediate', 'advanced']);
             }
 
-            return true; 
+            return true;
         });
 
         return response()->json([
             'success' => true,
             'message' => 'Available reports matching your location and experience fetched successfully.',
             'count'   => $filteredReports->count(),
-            'data'    => $filteredReports->values() 
+            'data'    => $filteredReports->values()
         ], 200);
     }
 }

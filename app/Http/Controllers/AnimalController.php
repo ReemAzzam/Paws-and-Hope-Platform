@@ -18,7 +18,7 @@ class AnimalController extends Controller
      */
     public function index(Request $request)
     {
-        $query = Animal::with(['photos', 'vet']);
+        $query = Animal::with(['photos', 'vet' , 'medicalConditions']);
 
         // Normalize inputs
         $type   = strtolower($request->input('type'));
@@ -145,7 +145,7 @@ class AnimalController extends Controller
      */
     public function show(Animal $animal)
     {
-        $animal->load(['photos', 'vet']);
+        $animal->load(['photos', 'vet' , 'medicalConditions', 'behavioralAttributes', 'vaccinations']);
 
         return response()->json([
             'success' => true,
@@ -163,7 +163,7 @@ class AnimalController extends Controller
 
         if ($user->hasRole('Veterinarian')) {
             $vet = Veterinarian::where('user_id', $user->id)->where('is_approved', true)->first();
-            
+
             if (!$vet) {
                 return response()->json([
                     'success' => false,
@@ -189,7 +189,7 @@ class AnimalController extends Controller
             'is_vaccinated'       => 'boolean',
             'is_neutered'         => 'boolean',
             'health_update_title' => 'nullable|string|max:255',
-            'health_update_note'  => 'nullable|string', 
+            'health_update_note'  => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -231,7 +231,7 @@ class AnimalController extends Controller
             if ($healthChanged || $statusChanged || $request->filled('health_update_note')) {
 
                 $title = $request->input('health_update_title') ?? 'Medical status report from supervising veterinarian';
-                
+
                 $content = "The attending veterinarian has updated the animal medical profile.\n";
                 if ($healthChanged) {
                     $content .= "• Current Health Status: " . $animal->health_status . " (Was: " . $oldHealthStatus . ").\n";
@@ -247,8 +247,8 @@ class AnimalController extends Controller
                     'animal_id' => $animal->id,
                     'title'     => $title,
                     'content'   => $content,
-                    'type'      => 'health', 
-                    'media_url' => $animal->photos()->first()?->photo_url 
+                    'type'      => 'health',
+                    'media_url' => $animal->photos()->first()?->photo_url
                 ]);
             }
 

@@ -4,12 +4,13 @@ namespace App\Notifications;
 
 use Illuminate\Bus\Queueable;
 use Illuminate\Notifications\Notification;
+use Illuminate\Notifications\Notifiable;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Support\Facades\Cache;
 
 class SendOTPNotification extends Notification
 {
-    use Queueable;
+    use Queueable,Notifiable;
 
     protected $otp;
 

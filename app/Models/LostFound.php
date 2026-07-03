@@ -34,6 +34,11 @@ class LostFound extends Model
         return $this->belongsTo(User::class);
     }
 
+    public function views()
+    {
+    return $this->hasMany(LostFoundView::class);
+    }
+
     public function matchesAsLost()
     {
         return $this->hasMany(LostFoundMatch::class, 'lost_post_id');
@@ -49,4 +54,5 @@ class LostFound extends Model
         return $this->hasMany(LostFoundPhoto::class, 'lost_found_id')
                 ->orderBy('order_number');
     }
+
 }

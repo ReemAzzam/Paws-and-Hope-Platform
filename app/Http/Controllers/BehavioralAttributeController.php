@@ -41,12 +41,13 @@ class BehavioralAttributeController extends Controller
      * عرض الصفات السلوكية لحيوان
      */
     public function showByAnimal($animal_id)
-    {
-        $attributes = BehavioralAttribute::where('animal_id', $animal_id)->get();
+   {
+    $features = BehavioralAttribute::where('animal_id', $animal_id)
+        ->pluck('attribute_name');
 
-        return response()->json([
-            'success' => true,
-            'data'    => $attributes
-        ]);
-    }
+    return response()->json([
+        'success' => true,
+        'features' => $features
+    ]);
+   }
 }

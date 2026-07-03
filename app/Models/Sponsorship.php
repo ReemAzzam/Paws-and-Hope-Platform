@@ -10,12 +10,12 @@ class Sponsorship extends Model
     use HasFactory;
 
     protected $fillable = [
-        'user_id', 
-        'animal_id', 
-        'monthly_amount', 
-        'status', 
-        'start_date', 
-        'next_payment_due', 
+        'user_id',
+        'animal_id',
+        'monthly_amount',
+        'status',
+        'start_date',
+        'next_payment_due',
         'notes'
     ];
 
@@ -35,8 +35,5 @@ class Sponsorship extends Model
     {
         return $this->hasMany(SponsorshipPayment::class);
     }
-    public function user()
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
+    
 }

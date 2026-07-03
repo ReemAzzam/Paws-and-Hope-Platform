@@ -11,6 +11,9 @@ use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
+use App\Models\User;
+use App\Events\SendNotificationEvent;
+use App\Support\NotificationTemplates;
 
 class SponsorshipController extends Controller
 {
@@ -55,6 +58,22 @@ class SponsorshipController extends Controller
                 'receipt_image_url'   => $receiptUrl,
                 'verification_status' => 'pending',
             ]);
+            $admins = User::role(['admin', 'SuperAdmin'])->get();
+
+            foreach ($admins as $admin) {
+
+               $notification = NotificationTemplates::newSponsorshipRequest(
+                Auth::user()->full_name,
+                $animal->name
+            );
+
+            event(new SendNotificationEvent(
+                $admin,
+                $notification['title'],
+                $notification['body'],
+                $notification['data']
+            ));
+            }
 
             DB::commit();
 
@@ -160,6 +179,24 @@ class SponsorshipController extends Controller
                 'receipt_image_url'   => $receiptUrl,
                 'verification_status' => 'pending',
             ]);
+            $animal = $sponsorship->animal;
+
+            $admins = User::role(['admin', 'SuperAdmin'])->get();
+
+            foreach ($admins as $admin) {
+
+                $notification = NotificationTemplates::sponsorshipRenewal(
+                    Auth::user()->full_name,
+                    $animal->name
+                );
+
+               event(new SendNotificationEvent(
+                $admin,
+                $notification['title'],
+                $notification['body'],
+                $notification['data']
+            ));
+            }
 
             return response()->json([
                 'message' => 'Renewal receipt uploaded successfully and is awaiting admin approval to extend the sponsorship.',
@@ -174,14 +211,14 @@ class SponsorshipController extends Controller
     public function mySponsorships()
     {
         $sponsorships = Sponsorship::where('user_id', Auth::id())
-            ->where('status', 'active') 
+            ->where('status', 'active')
             ->with([
-                'animal.photos', 
+                'animal.photos',
                 'animal.updates' => function($query) {
                     $query->latest();
-                }, 
+                },
                 'payments' => function($query) {
-                    $query->latest(); 
+                    $query->latest();
                 }
             ])
             ->get();
@@ -208,11 +245,11 @@ class SponsorshipController extends Controller
 
         if ($request->has('type')) {
             $type = $request->input('type');
-            
+
             if ($type === 'other') {
                 $query->whereNotIn('type', ['dog', 'cat']);
             } else {
-                $singularType = rtrim($type, 's'); 
+                $singularType = rtrim($type, 's');
                 $query->where('type', $singularType);
             }
         }

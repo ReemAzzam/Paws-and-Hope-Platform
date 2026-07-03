@@ -8,6 +8,7 @@ use App\Models\MatchingQuiz;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
+
 class MatchingController extends Controller
 {
      public function getQuestions()
@@ -77,7 +78,7 @@ class MatchingController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => 'تم حساب المطابقة بنجاح',
+            'message' => ' Saving preferences and calculating matching results successfully.',
             'data' => [
                 'overallScore' => $preference->highest_score,
                 'summary'      => $this->generateSummary($recommendations),
@@ -98,7 +99,7 @@ class MatchingController extends Controller
         if (!$preference) {
             return response()->json([
                 'success' => false,
-                'message' => 'لم تقم بإجراء اختبار مطابقة بعد'
+                'message' => 'You have not taken a matching test yet'
             ], 404);
         }
 
@@ -146,10 +147,10 @@ class MatchingController extends Controller
             if ($preference->preferred_animal_type === "Doesn't matter" ||
                 strtolower($preference->preferred_animal_type) === strtolower($animal->type)) {
                 $score += 12;
-                $reasons[] = "نوع الحيوان يطابق تفضيلك";
+                $reasons[] = "Animal type matches your preference";
             } else {
                 $score -= 8;
-                $negativeReasons[] = "نوع الحيوان مختلف عن تفضيلك";
+                $negativeReasons[] = "Animal type is different from your preference";
             }
 
             // سؤال 2: العمر
@@ -157,7 +158,7 @@ class MatchingController extends Controller
                 $ageGroup = $this->getAgeGroup($animal->age);
                 if ($preference->preferred_age === "Any" || $preference->preferred_age === $ageGroup) {
                     $score += 10;
-                    $reasons[] = "العمر مناسب";
+                    $reasons[] = "Age is suitable";
                 }
             }
 
@@ -165,48 +166,48 @@ class MatchingController extends Controller
             if ($preference->preferred_size === "Doesn't matter" ||
                 strtolower($preference->preferred_size) === strtolower($animal->size ?? '')) {
                 $score += 8;
-                $reasons[] = "الحجم مناسب";
+                $reasons[] = "Size is suitable";
             }
 
             // ====================== Group 2: Home & Lifestyle (30 نقاط) ======================
             if ($preference->housing_type === "House with yard" && in_array($animal->size, ['medium', 'large'])) {
                 $score += 9;
-                $reasons[] = "منزل مع حديقة مناسب لحجم الحيوان";
+                $reasons[] = "A house with a yard is suitable for medium/large animals";
             } elseif ($preference->housing_type === "Apartment" && $animal->size === 'small') {
                 $score += 8;
-                $reasons[] = "شقة مناسبة لحجم الحيوان الصغير";
+                $reasons[] = "An apartment is suitable for small animals";
             }
 
             if ($preference->hours_alone_daily !== null) {
                 if ($preference->hours_alone_daily <= 4) {
                     $score += 7;
-                    $reasons[] = "الحيوان لن يبقى وحده كثيراً";
+                    $reasons[] = "The animal won't be left alone for too long";
                 } elseif ($preference->hours_alone_daily > 8) {
                     $score -= 6;
-                    $negativeReasons[] = "الحيوان سيكون وحده لفترة طويلة";
+                    $negativeReasons[] = "The animal will be left alone for a long time";
                 }
             }
 
             // ====================== Group 3: Personality & Compatibility (25 نقاط) ======================
             if ($preference->preferred_personality) {
                 $score += 8;
-                $reasons[] = "الشخصية تتوافق";
+                $reasons[] = "The personality is a good match";
             }
 
             if ($preference->has_other_pets) {
                 $score += 7;
-                $reasons[] = "توافق مع وجود حيوانات أخرى";
+                $reasons[] = "Compatible with having other pets";
             }
 
             if ($preference->children_status !== "No" && $animal->is_urgent == false) {
                 $score += 7;
-                $reasons[] = "مناسب لوجود أطفال";
+                $reasons[] = "Suitable for having children";
             }
 
             // ====================== Group 4: Commitment (15 نقاط) ======================
             if ($preference->long_term_commitment) {
                 $score += 10;
-                $reasons[] = "مستعد للالتزام طويل الأمد";
+                $reasons[] = "Ready for long-term commitment";
             }
 
             $finalScore = max(0, min(100, round($score)));
@@ -215,7 +216,7 @@ class MatchingController extends Controller
                 'id'              => $animal->id,
                 'name'            => $animal->name ?? 'Unknown',
                 'breed'           => $animal->type,
-                'age'             => $animal->age ? $animal->age . ' سنة' : 'غير معروف',
+                'age'             => $animal->age ? $animal->age . ' year(s)' : 'Unknown',
                 'gender'          => $animal->gender,
                 'matchPercentage' => $finalScore,
                 'imageUrl'        => $animal->photos->first()?->photo_url ?? '/images/default-pet.jpg',
@@ -243,7 +244,7 @@ class MatchingController extends Controller
     private function generateSummary($recommendations)
     {
         if (empty($recommendations)) {
-            return "لم نجد مطابقات قوية حالياً، حاول تعديل إجاباتك.";
+            return "We couldn't find strong matches right now, please try adjusting your answers.";
         }
         return "Based on your answers, we found great matches for you!";
     }
