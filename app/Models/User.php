@@ -5,12 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
-use Illuminate\Contracts\Auth\MustVerifyEmail;
+//use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
-class User extends Authenticatable implements MustVerifyEmail
+class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, SoftDeletes, HasRoles;
 
@@ -26,6 +26,7 @@ class User extends Authenticatable implements MustVerifyEmail
     'longitude',
     'account_status',
     'two_factor_enabled',
+    'email_verified_at',
 ];
 
 protected $casts = [
@@ -47,7 +48,7 @@ protected $casts = [
     {
         return $this->hasMany(FcmToken::class);
     }
-    
+
     public function veterinarian()
     {
         return $this->hasOne(Veterinarian::class);

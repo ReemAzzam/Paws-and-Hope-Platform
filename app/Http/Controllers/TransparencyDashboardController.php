@@ -77,8 +77,8 @@ class TransparencyDashboardController extends Controller
                         'amount'             => $donation->amount,
                         'gateway_type'       => $donation->gateway_type,
                         'transaction_number' => $donation->transaction_number,
-                        'donor_name'         => $donation->is_anonymous 
-                            ? ($donation->user ? $donation->user->full_name . ' (Anonymous Donor)' : 'Anonymous Donor') 
+                        'donor_name'         => $donation->is_anonymous
+                            ? ($donation->user ? $donation->user->full_name . ' (Anonymous Donor)' : 'Anonymous Donor')
                             : ($donation->user ? $donation->user->full_name : 'Generous Donor'),
                         'created_at'         => $donation->created_at->format('Y-m-d H:i'),
                     ];

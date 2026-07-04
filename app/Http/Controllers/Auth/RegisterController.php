@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+use App\Notifications\SendOTPNotification;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -46,6 +47,8 @@ class RegisterController extends Controller
                 ]);
 
                 $user->assignRole($request->role);
+                $user->notify(new SendOTPNotification());
+
 
                 if ($request->role === 'volunteer') {
                     DB::table('volunteers')->insert([

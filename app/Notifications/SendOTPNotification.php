@@ -35,7 +35,8 @@ class SendOTPNotification extends Notification
             ->line('Your verification code is:')
             ->line('**' . $this->otp . '**')
             ->line('This code will expire in 10 minutes.')
-            ->line('If you did not request this code, please ignore this email.');
+            ->line('If you did not request this code, please ignore this email.')
+            ->salutation('Thank you for using our platform!');
     }
 
     /**
