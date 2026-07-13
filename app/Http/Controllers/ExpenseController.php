@@ -16,9 +16,9 @@ class ExpenseController extends Controller
         $validator = Validator::make($request->all(), [
             'amount'        => 'required|numeric|min:500',
             'title'         => 'required|string|max:150',
-            'description'   => 'nullable|string', 
+            'description'   => 'nullable|string',
             'category'      => 'required|in:medical,food,shelter_maintenance,logistics,other',
-            'invoice_image' => 'nullable|image|mimes:jpeg,png,jpg|max:10240', 
+            'invoice_image' => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
         ]);
 
         if ($validator->fails()) {
@@ -27,7 +27,7 @@ class ExpenseController extends Controller
                 'errors'  => $validator->errors()
             ], 422);
         }
-        
+
         try {
             $invoiceUrl = null;
             if ($request->hasFile('invoice_image')) {
@@ -36,7 +36,7 @@ class ExpenseController extends Controller
             }
 
             $expense = Expense::create([
-                'admin_id'           => Auth::id(), 
+                'admin_id'           => Auth::id(),
                 'amount'             => $request->amount,
                 'title'              => $request->title,
                 'description'        => $request->description,

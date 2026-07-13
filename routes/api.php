@@ -49,7 +49,7 @@ Route::prefix('v1')->group(function () {
     // Forgot Password
     Route::post('/password/forgot', [ForgotPasswordController::class, 'sendResetLink']);
     Route::post('/password/reset',  [ForgotPasswordController::class, 'reset']);
-    
+
     Route::prefix('animals')->group(function () {
     // ======== Public Animal Routes ========
     Route::get('/', [AnimalController::class, 'index']);
@@ -59,10 +59,10 @@ Route::prefix('v1')->group(function () {
     Route::get('/{animal_id}/medical-conditions/{id}', [AnimalMedicalConditionController::class, 'show']);
      Route::get('/{animal_id}/vaccinations', [VaccinationController::class, 'showByAnimal']);
     Route::get('/{animal_id}/behavioral-attributes', [BehavioralAttributeController::class, 'showByAnimal']);
-     });    
+     });
 
     Route::prefix('rescue/reports')->group(function () {
-  
+
     Route::post('/', [RescueReportController::class, 'store']);
 
     // تتبع بلاغ معيّن
@@ -76,7 +76,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/{lostFound}', [LostFoundController::class, 'show']);
         Route::get('/{lostFound}/similar', [LostFoundController::class, 'similarPosts']);
     });
-    
+
    // Available Animals For Sponsorship
         Route::get('/available-animals', [SponsorshipController::class, 'availableAnimalsForSponsorship']);
 
@@ -116,24 +116,32 @@ Route::prefix('v1')->group(function () {
         Route::post('/logout', [LoginController::class, 'logout']);
 
         // Profile
-        Route::get('/profile', [ProfileController::class, 'show']);
-        Route::put('/profile', [ProfileController::class, 'update']);
-        Route::put('/profile/change-password', [ProfileController::class, 'changePassword']);
+        Route::prefix('profile')->group(function(){
+            //Regular user Profile
+            Route::get('/regular-user', [ProfileController::class, 'show']);
+            Route::put('/profile', [ProfileController::class, 'update']);
+            Route::put('/profile/change-password', [ProfileController::class, 'changePassword']);
 
-        // Veterinarian Profile
-        Route::get('/veterinarians/{id}', [ProfileController::class, 'getVetProfile']);
-        Route::put('/veterinarians/update', [ProfileController::class, 'updateVetProfile']);
+            // Veterinarian Profile
+            Route::put('/vet/complete',[RegisterController::class,'completeVetProfile'])
+            ->middleware('role:veterinarian');
+            Route::get('/veterinarians/{id}', [ProfileController::class, 'getVetProfile']);
+            Route::put('/veterinarians/update', [ProfileController::class, 'updateVetProfile']);
 
-        // Volunteer Profile
-        Route::get('/volunteers/{id}', [ProfileController::class, 'getVolunteerProfile'])
-            ->middleware('role:SuperAdmin|veterinarian|volunteer');
+            // Volunteer Profile
+            Route::get('/volunteers/{id}', [ProfileController::class, 'getVolunteerProfile'])
+                ->middleware('role:SuperAdmin|veterinarian|volunteer');
+            Route::put('/volunteers/complete',[RegisterController::class,'completeVolunteerProfile'])
+                ->middleware('role:volunteer');
 
-        Route::put('/volunteers/update', [ProfileController::class, 'updateVolunteerProfile'])
-            ->middleware('role:volunteer');
-
+            Route::put('/volunteers/update', [ProfileController::class, 'updateVolunteerProfile'])
+                ->middleware('role:volunteer');
+        });
          Route::prefix('lost-found')->group(function () {
             Route::post('/', [LostFoundController::class, 'store']);
-    });
+            Route::put('/{lostFound}', [LostFoundController::class, 'update']);
+            Route::delete('/{lostFound}', [LostFoundController::class, 'destroy']);
+       });
 
          // Matching
         Route::prefix('matching')->group(function () {
@@ -203,7 +211,7 @@ Route::prefix('v1')->group(function () {
 
             //  ======== Rescue Management ========
         Route::prefix('rescue/reports')->group(function () {
-
+            Route::get('/my', [RescueReportController::class, 'myRescueReports']);
             // تحديث حالة البلاغ (المتطوع المكلّف فقط)
             Route::put('/{id}/status', [RescueReportController::class, 'updateStatus'])
                 ->middleware('role:volunteer');
@@ -237,11 +245,11 @@ Route::prefix('v1')->group(function () {
         Route::prefix('animals')->group(function(){
             // Create Animal (Vet only)
                 Route::post('/', [AnimalController::class, 'store'])
-                    ->middleware('role:veterinarian');
+                    ->middleware('role:veterinarian|SuperAdmin');
 
                 // Update Animal (Vet only)
                 Route::put('/{animal}', [AnimalController::class, 'update'])
-                    ->middleware('role:veterinarian');
+                    ->middleware('role:veterinarian|SuperAdmin');
 
                 // Delete Animal (SuperAdmin only)
                 Route::delete('/{animal_id}', [AnimalController::class, 'destroy'])

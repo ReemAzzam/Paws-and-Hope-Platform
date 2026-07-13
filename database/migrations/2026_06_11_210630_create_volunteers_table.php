@@ -10,9 +10,7 @@ return new class extends Migration {
         Schema::create('volunteers', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained()->onDelete('cascade');
-            
-            $table->string('country_code')->nullable();
-            $table->string('phone_number')->nullable();
+
             $table->text('detailed_address')->nullable();
             $table->integer('age')->nullable();
 

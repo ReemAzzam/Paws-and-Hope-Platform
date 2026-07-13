@@ -11,7 +11,6 @@ class Volunteer extends Model
 
     protected $fillable = [
         'user_id',
-        'phone_number',
         'detailed_address',
         'age',
         'vol_type',

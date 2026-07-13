@@ -440,4 +440,31 @@ class RescueReportController extends Controller
             'data'    => $filteredReports->values()
         ], 200);
     }
+
+    // My rescue reports
+    public function myRescueReports(Request $request)
+    {
+        $reports = RescueReport::where('user_id', $request->user()->id)
+            ->with(['images', 'volunteer.user:id,full_name'])
+            ->latest()
+            ->get()
+            ->map(function ($report) {
+                return [
+                    'id' => $report->id,
+                    'animal_type' => ucfirst($report->animal_type),
+                    'severity' => ucfirst($report->severity_level),
+                    'status' => ucfirst(str_replace('_', ' ', $report->status)),
+                    'location' => $report->location_address,
+                    'reported_at' => $report->created_at->format('M d, Y'),
+                    'volunteer' => $report->volunteer?->user?->full_name,
+                    'images' => $report->images->pluck('image_path')->values(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => $reports
+        ]);
+    }
+
 }

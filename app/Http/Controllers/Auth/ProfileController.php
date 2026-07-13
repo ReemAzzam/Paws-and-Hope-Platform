@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use App\Models\User;
+
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -17,21 +18,54 @@ class ProfileController extends Controller
      */
     public function show(Request $request)
     {
-        $user = $request->user()->load('roles');
+        $user = $request->user();
+
+        $adoptionsCount = \App\Models\AdoptionApplication::where('user_id', $user->id)
+            ->count();
+
+        $verifiedDonations = \App\Models\Donation::where('user_id', $user->id)
+            ->where('status', 'verified');
+
+        $donationsCount = (clone $verifiedDonations)->count();
+        $donationsTotal = (clone $verifiedDonations)->sum('amount');
+
+        $sponsorshipsCount = \App\Models\Sponsorship::where('user_id', $user->id)
+            ->where('status', 'active')
+            ->count();
+
+        $rescueReportsCount = \App\Models\RescueReport::where('reporter_id', $user->id)
+            ->count();
 
         return response()->json([
             'success' => true,
-            'user' => $user->only([
-                'id',
-                'full_name',
-                'email',
-                'country_code',
-                'phone_number',
-                'governorate',
-                'account_status',
-                'email_verified_at',
-            ]),
-            'roles' => $user->roles->pluck('name'),
+            'data' => [
+
+                'userInfo' => [
+                    'id' => $user->id,
+                    'full_name' => $user->full_name,
+                    'email' => $user->email,
+                    'phone_number' => $user->phone_number,
+                    'country_code' => $user->country_code,
+                    'governorate' => $user->governorate,
+                    'account_status' => $user->account_status,
+                    'email_verified_at' => $user->email_verified_at,
+                    'profile_created' => $user->created_at->format('M d, Y'),
+                ],
+
+                'impactDashboard' => [
+
+                    'adoptions' => $adoptionsCount,
+
+                    'donations' => [
+                        'total_amount' => $donationsTotal,
+                    ],
+
+                    'sponsorships' => $sponsorshipsCount,
+
+                    'rescue_reports' => $rescueReportsCount,
+                ]
+
+            ]
         ]);
     }
 
@@ -110,7 +144,7 @@ class ProfileController extends Controller
     public function getVetProfile($id)
     {
         $user = User::findOrFail($id);
-        
+
         if (!$user->hasRole('veterinarian')) {
             return response()->json([
                 'success' => false,
@@ -119,9 +153,9 @@ class ProfileController extends Controller
         }
 
         $user->load([
-            'veterinarian', 
+            'veterinarian',
             'veterinarian.awarenessPosts' => function($query) {
-                $query->latest(); 
+                $query->latest();
             },
             'veterinarian.animals' => function($query) {
                 $query->select('animals.id', 'animals.name', 'animals.type', 'animals.health_status', 'animals.vet_id');
@@ -140,7 +174,7 @@ class ProfileController extends Controller
                     'details'      => $user->veterinarian ,
                 ],
                 'my_posts'  => $user->veterinarian->awarenessPosts ?? [],
-                
+
                 'my_patients' => $user->veterinarian->animals ?? []
             ]
         ], 200);
@@ -221,7 +255,7 @@ class ProfileController extends Controller
             return response()->json(['success' => false, 'message' => 'Unauthorized. This route is for volunteers only.'], 403);
         }
 
-        $volunteer = $user->volunteer; 
+        $volunteer = $user->volunteer;
 
         $validator = Validator::make($request->all(), [
             'full_name'    => 'sometimes|required|string|max:255',
