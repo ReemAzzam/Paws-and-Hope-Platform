@@ -171,7 +171,6 @@ class UserRoleSeeder extends Seeder
 
         DB::table('veterinarians')->insert([
             'user_id'           => $vetUser->id,
-            'professional_name' => 'عيادة الشفاء البيطرية',
             'specialization'    => 'جراحة الحيوانات الأليفة',
             'clinic_location'   => 'حلب - حي الشهباء',
             'license_number'    => 'VET-2026-9982',

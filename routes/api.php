@@ -119,8 +119,8 @@ Route::prefix('v1')->group(function () {
         Route::prefix('profile')->group(function(){
             //Regular user Profile
             Route::get('/regular-user', [ProfileController::class, 'show']);
-            Route::put('/profile', [ProfileController::class, 'update']);
-            Route::put('/profile/change-password', [ProfileController::class, 'changePassword']);
+            Route::put('/', [ProfileController::class, 'update']);
+            Route::put('/change-password', [ProfileController::class, 'changePassword']);
 
             // Veterinarian Profile
             Route::put('/vet/complete',[RegisterController::class,'completeVetProfile'])

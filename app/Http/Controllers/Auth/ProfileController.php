@@ -46,10 +46,10 @@ class ProfileController extends Controller
                     'email' => $user->email,
                     'phone_number' => $user->phone_number,
                     'country_code' => $user->country_code,
-                    'governorate' => $user->governorate,
+                    'address' => $user->governorate,
                     'account_status' => $user->account_status,
                     'email_verified_at' => $user->email_verified_at,
-                    'profile_created' => $user->created_at->format('M d, Y'),
+                    'profile_created' => $user->created_at,
                 ],
 
                 'impactDashboard' => [
@@ -171,7 +171,11 @@ class ProfileController extends Controller
                     'email'        => $user->email,
                     'phone_number' => $user->phone_number,
                     'governorate'  => $user->governorate,
-                    'details'      => $user->veterinarian ,
+                    'specialization'   => $user->veterinarian->specialization,
+                    'clinic_location'  => $user->veterinarian->clinic_location,
+                    'working_hours'    => $user->veterinarian->working_hours,
+                    'license_number'   => $user->veterinarian->license_number,
+                    'is_approved'      => $user->veterinarian->is_approved,
                 ],
                 'my_posts'  => $user->veterinarian->awarenessPosts ?? [],
 
@@ -184,7 +188,7 @@ class ProfileController extends Controller
     {
         $currentUser = $request->user();
 
-        if (!$currentUser->hasRole('super_admin') && !$currentUser->hasRole('veterinarian')) {
+        if (!$currentUser->hasRole('super_admin') && !$currentUser->hasRole('veterinarian') && !$currentUser->hasRole('volunteer')) {
             return response()->json([
                 'success' => false,
                 'message' => 'Access denied. Only administrators and verified veterinarians can view volunteer profiles.'

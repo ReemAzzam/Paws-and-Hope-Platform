@@ -6,6 +6,7 @@ use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Veterinarian;
 use App\Notifications\SendOTPNotification;
+use FontLib\Table\Type\name;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -48,6 +49,8 @@ class RegisterController extends Controller
                 ]);
 
                 $user->assignRole($request->role);
+//                 \Log::info($request->role);
+// \Log::info($user->roles->pluck('name'));
                 $user->notify(new SendOTPNotification());
 
 
@@ -58,11 +61,11 @@ class RegisterController extends Controller
                         'updated_at' => now(),
                     ]);
                 } elseif ($request->role === 'veterinarian') {
-                    DB::table('veterinarians')->insert([
-                        'user_id'    => $user->id,
-                        'created_at' => now(),
-                        'updated_at' => now(),
-                    ]);
+                    // DB::table('veterinarians')->insert([
+                    //     'user_id'    => $user->id,
+                    //     'created_at' => now(),
+                    //     'updated_at' => now(),
+                    // ]);
                 } elseif ($request->role === 'regular_user') {
                     DB::table('regular_users')->insert([
                         'user_id'    => $user->id,
@@ -108,11 +111,10 @@ class RegisterController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'professional_name' => 'required|string|max:255',
             'specialization'    => 'required|string|max:255',
             'clinic_location'   => 'required|string|max:255',
-            'license_number'    => 'required|string|max:255|unique:veterinarians,license_number,' . $user->veterinarian->id,
-            'working_hours'     => 'nullable|string|max:255',
+           'license_number' => 'required|string|max:255|unique:veterinarians,license_number',
+           'working_hours'     => 'nullable|string|max:255',
         ]);
 
         if ($validator->fails()) {
@@ -122,21 +124,21 @@ class RegisterController extends Controller
             ], 422);
         }
 
-        $vet = $user->veterinarian;
-
-        $vet->update([
-            'professional_name' => $request->professional_name,
+            $vet = Veterinarian::updateOrCreate(
+        ['user_id' => $user->id],
+        [
             'specialization'    => $request->specialization,
             'clinic_location'   => $request->clinic_location,
             'license_number'    => $request->license_number,
             'working_hours'     => $request->working_hours,
-        ]);
+        ]
+    );
 
         return response()->json([
             'success' => true,
             'message' => 'Veterinarian profile completed successfully.',
             'data'    => [
-                'professional_name' => $vet->professional_name,
+                'professional_name' => $user->full_name,
                 'specialization'    => $vet->specialization,
                 'clinic_location'   => $vet->clinic_location,
                 'license_number'    => $vet->license_number,
