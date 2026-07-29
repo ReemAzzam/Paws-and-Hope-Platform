@@ -12,7 +12,9 @@ return new class extends Migration {
             $table->string('full_name');
             $table->string('email')->unique();
             $table->timestamp('email_verified_at')->nullable();
+            $table->string('google_id')->nullable()->unique();
             $table->string('password');
+            $table->string('photo')->nullable();
 
             // بيانات الاتصال الأساسية المشتركة لكل الفئات
             $table->string('country_code')->nullable();

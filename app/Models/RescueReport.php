@@ -24,10 +24,10 @@ class RescueReport extends Model
     {
         return $this->hasMany(RescueReportImage::class);
     }
-    public function reporter()
-    {
-        return $this->belongsTo(User::class, 'user_id');
-    }
+    // public function reporter()
+    // {
+    //     return $this->belongsTo(User::class, 'user_id');
+    // }
 
     public function user(){
         return $this->belongsTo(User::class, 'user_id');

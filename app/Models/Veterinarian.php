@@ -11,7 +11,6 @@ class Veterinarian extends Model
 
     protected $fillable = [
         'user_id',
-        'professional_name',
         'specialization',
         'clinic_location',
         'license_number',

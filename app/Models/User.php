@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 //use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Notifications\Notifiable;
@@ -19,6 +20,7 @@ class User extends Authenticatable
     'full_name',
     'email',
     'password',
+    'photo',
     'country_code',
     'phone_number',
     'governorate',
@@ -27,6 +29,7 @@ class User extends Authenticatable
     'account_status',
     'two_factor_enabled',
     'email_verified_at',
+    'google_id',
 ];
 
 protected $casts = [
@@ -40,6 +43,19 @@ protected $casts = [
         'password',
         'remember_token',
     ];
+
+protected static function booted()
+{
+    static::deleting(function ($user) {
+
+        if ($user->photo &&
+            Storage::disk('public')->exists($user->photo)) {
+
+            Storage::disk('public')->delete($user->photo);
+        }
+
+    });
+}
 
 
     // ====================== Relations ======================
@@ -66,7 +82,7 @@ protected $casts = [
 
     public function rescueReports()
     {
-        return $this->hasMany(RescueReport::class, 'reporter_id');
+        return $this->hasMany(RescueReport::class, 'user_id');
     }
 
     public function assignedRescues()

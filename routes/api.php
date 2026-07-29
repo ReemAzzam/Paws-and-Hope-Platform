@@ -29,7 +29,9 @@ use App\Http\Controllers\GeneralConsultationController;
 use App\Http\Controllers\AdminVerificationController;
 use App\Http\Controllers\CommunityPostController;
 use App\Http\Controllers\LostFoundController;
+use App\Http\Controllers\Auth\GoogleAuthController;
 use App\Http\Controllers\Api\FcmTokenController;
+use App\Http\Controllers\Api\CountryController;
 
 /*
 |--------------------------------------------------------------------------
@@ -41,6 +43,12 @@ Route::prefix('v1')->group(function () {
     // ====================== Auth Public ======================
     Route::post('/register', [RegisterController::class, 'register']);
     Route::post('/login',    [LoginController::class, 'login']);
+
+    Route::get('/countries', [CountryController::class, 'index']);
+
+    //Register via Google
+    Route::get('/auth/google', [GoogleAuthController::class, 'redirect']);
+    Route::get('/auth/google/callback', [GoogleAuthController::class, 'callback']);
 
     // OTP
     Route::post('/verify-otp', [OTPController::class, 'verify']);
@@ -119,14 +127,14 @@ Route::prefix('v1')->group(function () {
         Route::prefix('profile')->group(function(){
             //Regular user Profile
             Route::get('/regular-user', [ProfileController::class, 'show']);
-            Route::put('/', [ProfileController::class, 'update']);
+            Route::post('/', [ProfileController::class, 'update']);
             Route::put('/change-password', [ProfileController::class, 'changePassword']);
 
             // Veterinarian Profile
             Route::put('/vet/complete',[RegisterController::class,'completeVetProfile'])
             ->middleware('role:veterinarian');
             Route::get('/veterinarians/{id}', [ProfileController::class, 'getVetProfile']);
-            Route::put('/veterinarians/update', [ProfileController::class, 'updateVetProfile']);
+            Route::post('/veterinarians/update', [ProfileController::class, 'updateVetProfile']);
 
             // Volunteer Profile
             Route::get('/volunteers/{id}', [ProfileController::class, 'getVolunteerProfile'])
@@ -134,7 +142,7 @@ Route::prefix('v1')->group(function () {
             Route::put('/volunteers/complete',[RegisterController::class,'completeVolunteerProfile'])
                 ->middleware('role:volunteer');
 
-            Route::put('/volunteers/update', [ProfileController::class, 'updateVolunteerProfile'])
+            Route::post('/volunteers/update', [ProfileController::class, 'updateVolunteerProfile'])
                 ->middleware('role:volunteer');
         });
          Route::prefix('lost-found')->group(function () {

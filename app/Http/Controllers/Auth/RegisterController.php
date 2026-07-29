@@ -10,6 +10,7 @@ use FontLib\Table\Type\name;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\Rules\Password;
 
@@ -21,10 +22,19 @@ class RegisterController extends Controller
             'full_name'    => 'required|string|max:255',
             'email'        => 'required|string|email|max:255|unique:users',
             'password'     => ['required', 'confirmed', Password::defaults()],
-            'country_code' => 'required|string|max:5',
-            'phone_number' => 'required|string|max:15',
+            'photo'        => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+            'country_code'  => 'required|string|max:3',
+            'phone_number'  => [
+                'required',
+                'phone:' . $request->country_code,
+            ],
             'governorate'  => 'required|string|max:100',
             'role'         => 'required|in:regular_user,veterinarian,volunteer',
+        ],[
+            // رسائل مخصصة',
+            'phone_number.phone' => 'The phone number is not valid for the selected country code.Check the digits number ',
+            'country_code.required' => 'The country code is required.',
+            'country_code.size' => 'The country code must be exactly :size characters.',
         ]);
 
         if ($validator->fails()) {
@@ -34,13 +44,21 @@ class RegisterController extends Controller
             ], 422);
         }
 
+        $photoPath = null;
+
+        if ($request->hasFile('photo')) {
+            $photoPath = $request->file('photo')->store('users', 'public');
+        }
+
         try {
-            $user = DB::transaction(function () use ($request) {
+
+             $user = DB::transaction(function () use ($request, $photoPath) {
 
                 $user = User::create([
                     'full_name'          => $request->full_name,
                     'email'              => $request->email,
                     'password'           => Hash::make($request->password),
+                    'photo'              => $photoPath,
                     'country_code'       => $request->country_code,
                     'phone_number'       => $request->phone_number,
                     'governorate'        => $request->governorate,
@@ -49,8 +67,8 @@ class RegisterController extends Controller
                 ]);
 
                 $user->assignRole($request->role);
-//                 \Log::info($request->role);
-// \Log::info($user->roles->pluck('name'));
+    //                 \Log::info($request->role);
+    //                 \Log::info($user->roles->pluck('name'));
                 $user->notify(new SendOTPNotification());
 
 
@@ -82,14 +100,24 @@ class RegisterController extends Controller
             return response()->json([
                 'success' => true,
                 'message' => 'User registered successfully. Please verify your email with the OTP sent.',
-                'user'    => $user->only([
-                    'id', 'full_name', 'email', 'country_code',
-                    'phone_number', 'governorate'
-                ]),
+                  'user' => [
+                'id'           => $user->id,
+                'full_name'    => $user->full_name,
+                'email'        => $user->email,
+                'country_code' => $user->country_code,
+                'phone_number' => $user->phone_number,
+                'governorate'  => $user->governorate,
+                'photo'        => $user->photo
+                    ? asset('storage/' . $user->photo)
+                    : null,
+            ],
                 'token'   => $token,
             ], 201);
 
         } catch (\Exception $e) {
+             if ($photoPath) {
+            Storage::disk('public')->delete($photoPath);
+        }
             return response()->json([
                 'success' => false,
                 'message' => 'حدث خطأ ما أثناء التسجيل، يرجى المحاولة لاحقاً.',
