@@ -5,6 +5,8 @@ namespace App\Http\Controllers;
 use App\Http\Requests\StoreMedicalConditionRequest;
 use App\Http\Requests\UpdateMedicalConditionRequest;
 use App\Models\AnimalMedicalCondition;
+use App\Models\Animal;
+use App\Models\Veterinarian;
 use Illuminate\Http\Request;
 
 class AnimalMedicalConditionController extends Controller
@@ -29,6 +31,14 @@ class AnimalMedicalConditionController extends Controller
      */
     public function store(StoreMedicalConditionRequest $request, $animal_id)
     {
+        $animal = Animal::findOrFail($animal_id);
+
+         $authorization = $this->authorizeAnimalMedicalAccess($request, $animal);
+
+        if ($authorization) {
+            return $authorization;
+        }
+
         $condition = AnimalMedicalCondition::create([
             'animal_id'   => $animal_id,
             'condition'   => $request->condition,
@@ -64,12 +74,21 @@ class AnimalMedicalConditionController extends Controller
     public function update(UpdateMedicalConditionRequest $request, $id)
     {
         $condition = AnimalMedicalCondition::findOrFail($id);
+
+        $animal = $condition->animal;
+
+        $authorization = $this->authorizeAnimalMedicalAccess($request, $animal);
+
+        if ($authorization) {
+            return $authorization;
+        }
+
         $condition->update($request->validated());
 
         return response()->json([
             'success' => true,
             'message' => 'تم تحديث الحالة الطبية بنجاح',
-            'data'    => $condition
+            'data' => $condition
         ]);
     }
 
@@ -79,11 +98,62 @@ class AnimalMedicalConditionController extends Controller
     public function destroy($id)
     {
         $condition = AnimalMedicalCondition::findOrFail($id);
+
+        $animal = $condition->animal;
+
+        $authorization = $this->authorizeAnimalMedicalAccess($request, $animal);
+
+        if ($authorization) {
+            return $authorization;
+        }
+
         $condition->delete();
 
         return response()->json([
             'success' => true,
             'message' => 'تم حذف الحالة الطبية بنجاح'
         ]);
+    }
+
+    /**
+     * إدارة الوصول إلى الحالات الطبية للحيوانات
+     */
+    private function authorizeAnimalMedicalAccess(Request $request, Animal $animal)
+    {
+        $user = $request->user();
+
+        // Admin مسموح له
+        if ($user->hasRole('Admin')) {
+            return null;
+        }
+
+        // الطبيب
+        if ($user->hasRole('Veterinarian')) {
+
+            $vet = Veterinarian::where('user_id', $user->id)
+                ->where('is_approved', true)
+                ->first();
+
+            if (!$vet) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Your veterinarian account is not approved or active.'
+                ], 403);
+            }
+
+            if ($animal->vet_id !== $vet->id) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Access denied. You are not the veterinarian responsible for this animal.'
+                ], 403);
+            }
+
+            return null;
+        }
+
+        return response()->json([
+            'success' => false,
+            'message' => 'You are not authorized to manage medical conditions.'
+        ], 403);
     }
 }

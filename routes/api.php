@@ -254,7 +254,7 @@ Route::prefix('v1')->group(function () {
         Route::prefix('animals')->group(function(){
             // Create Animal (Vet only)
                 Route::post('/', [AnimalController::class, 'store'])
-                    ->middleware('role:veterinarian|SuperAdmin');
+                    ->middleware('role:SuperAdmin');
 
                 // Update Animal (Vet only)
                 Route::put('/{animal}', [AnimalController::class, 'update'])

@@ -170,7 +170,15 @@ class AnimalController extends Controller
                     'message' => 'Access denied. Your professional medical account must be verified and active to modify health statuses.'
                 ], 403);
             }
-            $currentVetId = $vet->id;
+                $currentVetId = $vet->id;
+
+        // الطبيب المسؤول فقط يستطيع التعديل
+        if ($animal->vet_id !== $currentVetId) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Access denied. You are not the veterinarian responsible for this animal.'
+            ], 403);
+        }
         }
 
         $validator = Validator::make($request->all(), [
@@ -207,6 +215,7 @@ class AnimalController extends Controller
         if ($currentVetId) {
             $updateData['vet_id'] = $currentVetId;
         }
+
 
         DB::beginTransaction();
         try {
