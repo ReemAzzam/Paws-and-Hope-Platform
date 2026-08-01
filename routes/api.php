@@ -156,6 +156,7 @@ Route::prefix('v1')->group(function () {
             Route::get('/quiz/questions', [MatchingController::class, 'getQuestions']);
             Route::post('/preferences', [MatchingController::class, 'storePreferences']);
             Route::get('/last', [MatchingController::class, 'getLastMatching']);
+            Route::get('/browse', [MatchingController::class, 'browseMatches']);
             Route::get('/history', [MatchingController::class, 'getAllMatchings']);
         });
 

@@ -130,7 +130,7 @@ class MatchingController extends Controller
     }
 
       // ====================== Logic حساب النقاط ======================
-    private function calculateMatching($preference)
+    private function calculateMatching($preference,$returnAll = false)
     {
         $animals = Animal::where('availability_status', 'available')
                          ->with('photos')
@@ -217,7 +217,9 @@ class MatchingController extends Controller
                 'name'            => $animal->name ?? 'Unknown',
                 'breed'           => $animal->type,
                 'age'             => $animal->age ? $animal->age . ' year(s)' : 'Unknown',
+                'age_group'       => $animal->age ? $this->getAgeGroup($animal->age) : null,
                 'gender'          => $animal->gender,
+                'size'            => $animal->size,
                 'matchPercentage' => $finalScore,
                 'imageUrl'        => $animal->photos->first()?->photo_url ?? '/images/default-pet.jpg',
                 'tags'            => $reasons,
@@ -226,9 +228,77 @@ class MatchingController extends Controller
         }
 
         // ترتيب تنازلي
-        usort($results, fn($a, $b) => $b['matchPercentage'] <=> $a['matchPercentage']);
+       usort($results, fn($a, $b) => $b['matchPercentage'] <=> $a['matchPercentage']);
 
-        return array_slice($results, 0, 3);
+    return $returnAll ? $results : array_slice($results, 0, 3);
+    }
+
+        /**
+     * Browse All Matches مع فلاتر
+     */
+    public function browseMatches(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'type'      => 'nullable|string',
+            'gender'    => 'nullable|in:male,female',
+            'size'      => 'nullable|in:small,medium,large',
+            'age_group' => 'nullable|in:Puppy/Kitten,Adult,Senior',
+            'min_score' => 'nullable|integer|min:0|max:100',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+
+        $preference = UserMatchingPreference::where('user_id', $request->user()->id)
+                        ->latest()
+                        ->first();
+
+        if (!$preference) {
+            return response()->json([
+                'success' => false,
+                'message' => 'You must complete the matching test first'
+            ], 404);
+        }
+
+        // نجيب كل النتائج
+        $allResults = $this->calculateMatching($preference, true);
+
+        $filtered = collect($allResults);
+
+        // تطبيق الفلاتر
+        if ($request->filled('type')) {
+            $filtered = $filtered->filter(function ($item) use ($request) {
+                return strtolower($item['type']) === strtolower($request->type);
+            });
+        }
+
+        if ($request->filled('gender')) {
+            $filtered = $filtered->where('gender', $request->gender);
+        }
+
+        if ($request->filled('size')) {
+            $filtered = $filtered->where('size', $request->size);
+        }
+
+        if ($request->filled('age_group')) {
+            $filtered = $filtered->where('age_group', $request->age_group);
+        }
+
+        if ($request->filled('min_score')) {
+            $filtered = $filtered->where('matchPercentage', '>=', (int) $request->min_score);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total'   => $filtered->count(),
+                'matches' => $filtered->values()
+            ]
+        ]);
     }
 
     /**
