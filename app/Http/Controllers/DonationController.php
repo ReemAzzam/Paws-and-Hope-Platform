@@ -17,10 +17,11 @@ class DonationController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'amount'             => 'required|numeric|min:500',
-            'gateway_type'       => 'required|in:al_haram,al_fouad,syriatel_cash,mtn_cash',
-            'transaction_number' => 'required|string|max:100|digits:12',
-            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg|max:10240',
+            'amount'             => 'required|numeric|min:1',
+            'currency'           => 'required|in:SYP,USD',
+            'gateway_type'       => 'required|in:al_haram,al_fouad,syriatel_cash,mtn_cash,western_union,paypal,gofundme,hand_delivery,external',
+            'transaction_number' => 'nullable|string|max:100',
+            'receipt_image'      => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
             'is_anonymous'       => 'nullable|boolean',
         ]);
 
@@ -31,51 +32,53 @@ class DonationController extends Controller
             ], 422);
         }
 
-        $exists = Donation::where('transaction_number', $request->transaction_number)->exists();
-        if ($exists) {
-            return response()->json([
-                'success' => false,
-                'message' => 'This transaction identifier has already been processed.'
-            ], 400);
+        // التحقق من تكرار رقم العملية فقط إذا تم إرساله
+        if ($request->filled('transaction_number')) {
+            $exists = Donation::where('transaction_number', $request->transaction_number)->exists();
+            if ($exists) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'This transaction identifier has already been processed.'
+                ], 400);
+            }
         }
 
         try {
+            $receiptUrl = null;
             if ($request->hasFile('receipt_image')) {
                 $path = $request->file('receipt_image')->store('donation_receipts', 'public');
                 $receiptUrl = Storage::url($path);
-            } else {
-                return response()->json([
-                    'success' => false,
-                    'message' => 'Receipt ledger upload failed, please re-verify your file attachment.'
-                ], 400);
             }
+
             $userId = Auth::check() ? Auth::id() : null;
+
             $donation = Donation::create([
-                'user_id'             => $userId,
-                'amount'              => $request->amount,
-                'gateway_type'        => $request->gateway_type,
-                'transaction_number'  => $request->transaction_number,
-                'receipt_image_path'  => $receiptUrl,
-                'status'              => 'pending',
-                'is_anonymous'        => $request->has('is_anonymous') ? (bool)$request->is_anonymous : false,
+                'user_id'            => $userId,
+                'amount'             => $request->amount,
+                'currency'           => $request->currency,
+                'gateway_type'       => $request->gateway_type,
+                'transaction_number' => $request->transaction_number,
+                'receipt_image_path' => $receiptUrl,
+                'status'             => 'pending',
+                'is_anonymous'       => $request->has('is_anonymous') ? (bool)$request->is_anonymous : false,
             ]);
 
-            $admins = User::role(['admin', 'SuperAdmin'])->get();
+            // إشعار الأدمن بالتبرع الجديد مع إضافة العملة
+           // $admins = User::role(['admin', 'SuperAdmin'])->get();
 
-            foreach ($admins as $admin) {
-
+           /* foreach ($admins as $admin) {
                 $notification = NotificationTemplates::newDonation(
                     Auth::user()?->full_name ?? 'Anonymous User',
-                    $donation->amount
+                    $donation->amount . ' ' . $donation->currency
                 );
 
                 event(new SendNotificationEvent(
-                $admin,
-                $notification['title'],
-                $notification['body'],
-                $notification['data']
-            ));
-            }
+                    $admin,
+                    $notification['title'],
+                    $notification['body'],
+                    $notification['data']
+                ));
+            }*/
 
             return response()->json([
                 'success' => true,
@@ -145,7 +148,7 @@ class DonationController extends Controller
         }
 
         $donation->update([
-            'status' => 'rejected',
+            'status'           => 'rejected',
             'rejection_reason' => $request->rejection_reason
         ]);
 

@@ -78,14 +78,14 @@ class ProcessRescueReportAssignment implements ShouldQueue
             return;
         }
 
-        foreach ($targetVolunteers as $volunteer) {
+        /*foreach ($targetVolunteers as $volunteer) {
             $user = $volunteer->user;
 
             if ($user && $user->fcm_token) {
                 $this->sendFcmNotification($user->fcm_token, $this->report);
             }
 
-        }
+        }*/
     }
 
 

@@ -9,6 +9,7 @@ use App\Models\RescueReportImage;
 use App\Events\ReportStatusUpdated;
 use App\Events\VolunteerLocationUpdated;
 use App\Jobs\ProcessRescueReportAssignment;
+use App\Jobs\BroadcastReportToAllVolunteers;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
@@ -61,7 +62,7 @@ class RescueReportController extends Controller
                 }
             }
 
-            $template = NotificationTemplates::newRescueReport($report);
+            /*$template = NotificationTemplates::newRescueReport($report);
 
             // المتطوعون ضمن 5 كم
             $nearbyVolunteers = User::role('volunteer')
@@ -86,10 +87,12 @@ class RescueReportController extends Controller
                     $template['body'],
                     $template['data']
                 );
-            }
+            }*/
             DB::commit();
 
             ProcessRescueReportAssignment::dispatch($report);
+
+            BroadcastReportToAllVolunteers::dispatch($report)->delay(now()->addMinutes(5));
 
             return response()->json([
                 'success' => true,
@@ -189,7 +192,7 @@ class RescueReportController extends Controller
         DB::beginTransaction();
         try {
             $report->save();
-            $template = NotificationTemplates::rescueStatusUpdated(
+            /*$template = NotificationTemplates::rescueStatusUpdated(
                     $report,
                     $request->status
                 );
@@ -200,6 +203,7 @@ class RescueReportController extends Controller
                     $template['body'],
                     $template['data']
                 );
+            */
 
             if ($request->status === 'resolved' && $oldStatus !== 'resolved') {
 
@@ -274,6 +278,7 @@ class RescueReportController extends Controller
                     'message' => 'Sorry, the report does not exist.'
                 ], 404);
             }
+
             if ($report->status !== 'reported') {
                 DB::rollBack();
                 return response()->json([
@@ -287,13 +292,16 @@ class RescueReportController extends Controller
                 'volunteer_id' => $volunteerProfile->id,
             ]);
 
-            $template = NotificationTemplates::rescueAccepted($report);
-            SendNotificationEvent::dispatch(
-                $report->user,
-                $template['title'],
-                $template['body'],
-                $template['data']
-            );
+            // 🔹 التحقق من أن صاحب البلاغ مستخدم مسجل وليس null
+            /*if ($report->user) {
+                $template = NotificationTemplates::rescueAccepted($report);
+                SendNotificationEvent::dispatch(
+                    $report->user,
+                    $template['title'],
+                    $template['body'],
+                    $template['data']
+                );
+            }*/
 
             DB::commit();
 
@@ -318,7 +326,111 @@ class RescueReportController extends Controller
             return response()->json([
                 'success' => false,
                 'message' => 'An error occurred while processing the report acceptance, please try again.',
-                "error"   => $e->getMessage()
+                'error'   => $e->getMessage()
+            ], 500);
+        }
+    }
+
+    public function cancelAcceptance(Request $request, $id)
+    {
+        $user = auth()->user();
+        $volunteerProfile = $user->volunteer;
+
+        if (!$volunteerProfile) {
+            return response()->json([
+                'success' => false,
+                'message' => 'عذراً، لا يوجد ملف متطوع نشط لهذا الحساب.'
+            ], 403);
+        }
+
+        DB::beginTransaction();
+
+        try {
+            $report = RescueReport::lockForUpdate()->find($id);
+
+            if (!$report) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'عذراً، البلاغ غير موجود.'
+                ], 404);
+            }
+
+            if ($report->volunteer_id !== $volunteerProfile->id) {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'عذراً، لا يمكنك إلغاء هذا البلاغ لأنك لست المتطوع الموكل به.'
+                ], 403);
+            }
+
+            if ($report->status !== 'dispatched') {
+                DB::rollBack();
+                return response()->json([
+                    'success' => false,
+                    'message' => 'لا يمكن إلغاء قبول البلاغ في هذه المرحلة.'
+                ], 400);
+            }
+
+            $report->update([
+                'status'       => 'reported',
+                'volunteer_id' => null,
+            ]);
+
+            // 🔕 تم تعليق الإشعارات للتجربة (نفس طريقة store)
+            /*
+            $template = NotificationTemplates::newRescueReport($report);
+
+            // المتطوعون ضمن 5 كم
+            $nearbyVolunteers = User::role('volunteer')
+                ->whereNotNull('latitude')
+                ->whereNotNull('longitude')
+                ->get()
+                ->filter(function ($volunteer) use ($report) {
+
+                    return $this->calculateDistance(
+                        $report->latitude,
+                        $report->longitude,
+                        $volunteer->latitude,
+                        $volunteer->longitude
+                    ) <= 5;
+                });
+
+            foreach ($nearbyVolunteers as $volunteer) {
+
+                SendNotificationEvent::dispatch(
+                    $volunteer,
+                    $template['title'],
+                    $template['body'],
+                    $template['data']
+                );
+            }
+            */
+
+            DB::commit();
+
+            ProcessRescueReportAssignment::dispatch($report);
+            BroadcastReportToAllVolunteers::dispatch($report)->delay(now()->addMinutes(5));
+
+            broadcast(new ReportStatusUpdated($report))->toOthers();
+
+            return response()->json([
+                'success' => true,
+                'message' => 'تم إلغاء قبول البلاغ بنجاح وإعادة إتاحته للمتطوعين الآخرين.',
+                'data'    => [
+                    'report_id' => $report->id,
+                    'status'    => $report->status,
+                ]
+            ], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            Log::error('خطأ أثناء إلغاء قبول البلاغ: ' . $e->getMessage());
+
+            return response()->json([
+                'success' => false,
+                'message' => 'حدث خطأ أثناء إلغاء قبول البلاغ، يرجى المحاولة لاحقاً.',
+                'error'   => $e->getMessage()
             ], 500);
         }
     }
@@ -388,6 +500,7 @@ class RescueReportController extends Controller
     {
         $user = Auth::user();
 
+
         $volunteer = Volunteer::where('user_id', $user->id)
             ->where('is_approved', true)
             ->first();
@@ -395,49 +508,35 @@ class RescueReportController extends Controller
         if (!$volunteer) {
             return response()->json([
                 'success' => false,
-                'message' => 'Sorry, this route is restricted to approved volunteers only.'
+                'message' => 'عذراً، هذه الواجهة مخصصة للمتطوعين المعتمدين فقط.'
             ], 403);
         }
 
-        $volLat = $volunteer->current_latitude;
-        $volLng = $volunteer->current_longitude;
-        $radiusInMeters = 5000;
-
-        if (!$volLat || !$volLng) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Please update your geographic location (GPS) first to view nearby reports.'
-            ], 400);
-        }
-
-        $nearbyReports = RescueReport::where('status', 'reported')
-            ->whereRaw("ST_Distance_Sphere(point(longitude, latitude), point(?, ?)) <= ?", [
-                $volLng,
-                $volLat,
-                $radiusInMeters
-            ])
+        $allReportedReports = RescueReport::where('status', 'reported')
+            ->with('images')
             ->orderBy('created_at', 'desc')
             ->get();
 
-        $filteredReports = $nearbyReports->filter(function ($report) use ($volunteer) {
+        $filteredReports = $allReportedReports->filter(function ($report) use ($volunteer) {
             $severity = $report->severity_level;
+            $expLevel = $volunteer->experience_level;
 
             if ($severity === 'critical') {
-                return $volunteer->experience_level === 'advanced';
+                return $expLevel === 'advanced';
             }
 
             if ($severity === 'urgent') {
-                return in_array($volunteer->experience_level, ['intermediate', 'advanced']);
+                return in_array($expLevel, ['intermediate', 'advanced']);
             }
 
-            return true;
+            return true; 
         });
 
         return response()->json([
             'success' => true,
-            'message' => 'Available reports matching your location and experience fetched successfully.',
+            'message' => 'تم جلب البلاغات المتاحة المتوافقة مع مستوى خبرتك بنجاح.',
             'count'   => $filteredReports->count(),
-            'data'    => $filteredReports->values()
+            'data'    => $filteredReports->values() 
         ], 200);
     }
 
@@ -467,4 +566,133 @@ class RescueReportController extends Controller
         ]);
     }
 
+
+    private function calculateDistance($lat1, $lon1, $lat2, $lon2)
+    {
+        $earthRadius = 6371; // Earth radius in kilometers
+
+        $dLat = deg2rad($lat2 - $lat1);
+        $dLon = deg2rad($lon2 - $lon1);
+
+        $a = sin($dLat / 2) * sin($dLat / 2) +
+             cos(deg2rad($lat1)) * cos(deg2rad($lat2)) *
+             sin($dLon / 2) * sin($dLon / 2);
+
+        $c = 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+        return $earthRadius * $c; // Returns distance in KM
+    }
+
+    public function assignedReports(Request $request)
+    {
+        $user = Auth::user();
+
+        $volunteer = Volunteer::where('user_id', $user->id)
+            ->where('is_approved', true)
+            ->first();
+
+        if (!$volunteer) {
+            return response()->json([
+                'success' => false,
+                'message' => 'عذراً، هذه الواجهة مخصصة للمتطوعين المعتمدين فقط.'
+            ], 403);
+        }
+
+        $assignedReports = RescueReport::where('volunteer_id', $volunteer->id)
+            ->whereIn('status', ['dispatched', 'on_site', 'in_clinic'])
+            ->with([
+                'images',
+                'user:id,full_name,phone_number' 
+            ])
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم جلب البلاغات الموكلة إليك بنجاح.',
+            'count'   => $assignedReports->count(),
+            'data'    => $assignedReports
+        ], 200);
+    }
+
+    public function rescueHistory(Request $request)
+    {
+        $user = Auth::user();
+
+        $volunteer = Volunteer::where('user_id', $user->id)
+            ->where('is_approved', true)
+            ->first();
+
+        if (!$volunteer) {
+            return response()->json([
+                'success' => false,
+                'message' => 'عذراً، هذه الواجهة مخصصة للمتطوعين المعتمدين فقط.'
+            ], 403);
+        }
+
+        $history = RescueReport::where('volunteer_id', $volunteer->id)
+            ->where('status', 'resolved')
+            ->with(['images']) 
+            ->orderBy('updated_at', 'desc')
+            ->get();
+
+        $formattedData = $history->map(function ($report) {
+            return [
+                'id'               => $report->id,
+                'rescued_at'       => $report->updated_at, 
+                'latitude'         => $report->latitude,
+                'longitude'        => $report->longitude,
+                'location_address' => $report->location_address, // الموقع
+                'status'           => $report->status,           // الحالة (resolved)
+                'animal_type'      => $report->animal_type,      // نوع الحيوان/الإنقاذ
+                'severity_level'   => $report->severity_level,   // درجة الخطورة
+                'health_status'    => $report->health_status,    // الحالة الصحية
+                'description'      => $report->description,      // وصف الحالة
+                'images'           => $report->images            // صور الحالة
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم جلب سجل الحالات التي تم إنقاذها بنجاح.',
+            'count'   => $formattedData->count(),
+            'data'    => $formattedData
+        ], 200);
+    }
+
+    public function volunteerStats(Request $request)
+    {
+        $user = Auth::user();
+
+        $volunteer = Volunteer::where('user_id', $user->id)
+            ->where('is_approved', true)
+            ->first();
+
+        if (!$volunteer) {
+            return response()->json([
+                'success' => false,
+                'message' => 'عذراً، هذه الواجهة مخصصة للمتطوعين المعتمدين فقط.'
+            ], 403);
+        }
+
+        $availableReportsCount = RescueReport::where('status', 'reported')->count();
+
+        $activeMissionsCount = RescueReport::where('volunteer_id', $volunteer->id)
+            ->whereIn('status', ['dispatched', 'on_site', 'in_clinic'])
+            ->count();
+
+        $completedRescueReportsCount = RescueReport::where('volunteer_id', $volunteer->id)
+            ->where('status', 'resolved')
+            ->count();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'تم جلب إحصائيات المتطوع بنجاح.',
+            'data'    => [
+                'available_reports'        => $availableReportsCount,
+                'active_missions'          => $activeMissionsCount,
+                'completed_rescue_reports' => $completedRescueReportsCount,
+            ]
+        ], 200);
+    }
 }

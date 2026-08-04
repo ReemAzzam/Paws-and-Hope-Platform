@@ -12,6 +12,7 @@ class Donation extends Model
     protected $fillable = [
         'user_id',
         'amount',
+        'currency',
         'gateway_type',
         'transaction_number',
         'receipt_image_path',

@@ -12,9 +12,22 @@ return new class extends Migration
             $table->id();
             $table->foreignId('user_id')->nullable()->constrained('users')->onDelete('set null');
             $table->decimal('amount', 12, 2);
-            $table->string('gateway_type'); 
-            $table->string('transaction_number')->unique(); 
-            $table->string('receipt_image_path'); 
+            // إضافة حقل العملة (USD أو SYP)
+            $table->enum('currency', ['SYP', 'USD'])->default('SYP'); 
+            // توسيع خيارات البوابات لتشمل الحوالات الخارجية والدفع اليدوي
+            $table->enum('gateway_type', [
+                'al_haram', 
+                'al_fouad', 
+                'syriatel_cash', 
+                'mtn_cash', 
+                'western_union', 
+                'paypal', 
+                'gofundme', 
+                'hand_delivery',
+                'external'
+            ]); 
+            $table->string('transaction_number')->nullable()->unique(); // إمكانية القبول كـ nullable في حال التسليم اليدوي
+            $table->string('receipt_image_path')->nullable(); 
             $table->enum('status', ['pending', 'verified', 'rejected'])->default('pending');
             $table->string('rejection_reason')->nullable(); 
             $table->boolean('is_anonymous')->default(false); 

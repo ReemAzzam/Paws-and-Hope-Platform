@@ -356,92 +356,222 @@ class ProfileController extends Controller
     }
 
     public function updateVetProfile(Request $request)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        if (!$user->hasRole('veterinarian')) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized. This route is for veterinarians only.'], 403);
-        }
-
-        $vet = $user->veterinarian;
-
-        $validator = Validator::make($request->all(), [
-            'full_name'    => 'sometimes|required|string|max:255',
-            'phone_number' => 'sometimes|required|string|max:20',
-            'photo'          => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
-            'governorate'  => 'sometimes|required|string|max:100',
-            'clinic_address' => 'sometimes|string|max:255',
-            'specialization' => 'sometimes|string|max:255',
-            'bio'            => 'sometimes|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-        }
-
-        DB::transaction(function () use ($request, $user, $vet) {
-            $user->update($request->only(['full_name', 'phone_number', 'governorate' , 'photo']));
-            if ($vet) {
-                $vet->update($request->only(['clinic_address', 'specialization', 'bio']));
-            }
-        });
-
-        $user->load('veterinarian');
-
+    if (!$user->hasRole('veterinarian')) {
         return response()->json([
-            'success' => true,
-            'message' => 'Veterinarian profile updated successfully.',
-            'data'    => $user
-        ], 200);
+            'success' => false, 
+            'message' => 'Unauthorized. This route is for veterinarians only.'
+        ], 403);
     }
 
-    public function updateVolunteerProfile(Request $request)
-    {
-        $user = $request->user();
+    $vet = $user->veterinarian;
 
-        if (!$user->hasRole('volunteer')) {
-            return response()->json(['success' => false, 'message' => 'Unauthorized. This route is for volunteers only.'], 403);
-        }
+    $validator = Validator::make($request->all(), [
+        'full_name'      => 'sometimes|required|string|max:255',
+        'phone_number'   => 'sometimes|required|string|max:20',
+        'photo'          => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
+        'governorate'    => 'sometimes|required|string|max:100',
+        'clinic_address' => 'sometimes|string|max:255',
+        'specialization' => 'sometimes|string|max:255',
+        'bio'            => 'sometimes|string',
+    ]);
 
-        $volunteer = $user->volunteer;
+    if ($validator->fails()) {
+        return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+    }
 
-        $validator = Validator::make($request->all(), [
-            'full_name'    => 'sometimes|required|string|max:255',
-            'phone_number' => 'sometimes|required|string|max:20',
-            'governorate'  => 'sometimes|required|string|max:100',
-            'photo'          => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
-            'skills'            => 'sometimes|string',
-            'available_hours'   => 'sometimes|integer',
-        ]);
+    $photoPath = $user->photo; // الاحتفاظ بالمسار الحالي افتراضياً
 
-        if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-        }
-        if ($request->hasFile('photo')) {
-
-    // حذف الصورة القديمة
+    // معالجة رفع الصورة إذا تم إرسال ملف جديد
+    if ($request->hasFile('photo')) {
+        // 1. حذف الصورة القديمة من القرص إذا كانت موجودة
         if ($user->photo && Storage::disk('public')->exists($user->photo)) {
             Storage::disk('public')->delete($user->photo);
         }
 
-        // حفظ الجديدة
-        $user->photo = $request->file('photo')->store('users', 'public');
+        // 2. رفع الصورة الجديدة وجلب المسار النصي
+        $path = $request->file('photo')->store('users', 'public');
+        $photoPath = Storage::url($path);
     }
 
-        DB::transaction(function () use ($request, $user, $volunteer) {
-            $user->update($request->only(['full_name', 'phone_number', 'governorate' , 'photo']));
+    // إجراء التعديلات داخل المعاملة (Transaction)
+    DB::transaction(function () use ($request, $user, $vet, $photoPath) {
+        $userData = $request->only(['full_name', 'phone_number', 'governorate']);
 
-            if ($volunteer) {
-                $volunteer->update($request->only(['skills', 'available_hours']));
-            }
-        });
+        // تعيين المسار النصي للصورة في مصفوفة التحديث
+        if ($request->hasFile('photo')) {
+            $userData['photo'] = $photoPath;
+        }
 
-        $user->load('volunteer');
+        $user->update($userData);
 
+        if ($vet) {
+            $vet->update($request->only(['clinic_address', 'specialization', 'bio']));
+        }
+    });
+
+    $user->load('veterinarian');
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Veterinarian profile updated successfully.',
+        'data'    => $user
+    ], 200);
+}
+
+    // public function updateVetProfile(Request $request)
+    // {
+    //     $user = $request->user();
+
+    //     if (!$user->hasRole('veterinarian')) {
+    //         return response()->json(['success' => false, 'message' => 'Unauthorized. This route is for veterinarians only.'], 403);
+    //     }
+
+    //     $vet = $user->veterinarian;
+
+    //     $validator = Validator::make($request->all(), [
+    //         'full_name'    => 'sometimes|required|string|max:255',
+    //         'phone_number' => 'sometimes|required|string|max:20',
+    //         'photo'          => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
+    //         'governorate'  => 'sometimes|required|string|max:100',
+    //         'clinic_address' => 'sometimes|string|max:255',
+    //         'specialization' => 'sometimes|string|max:255',
+    //         'bio'            => 'sometimes|string',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+    //     }
+
+    //     DB::transaction(function () use ($request, $user, $vet) {
+    //         $user->update($request->only(['full_name', 'phone_number', 'governorate' , 'photo']));
+    //         if ($vet) {
+    //             $vet->update($request->only(['clinic_address', 'specialization', 'bio']));
+    //         }
+    //     });
+
+    //     $user->load('veterinarian');
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Veterinarian profile updated successfully.',
+    //         'data'    => $user
+    //     ], 200);
+    // }
+
+    // public function updateVolunteerProfile(Request $request)
+    // {
+    //     $user = $request->user();
+
+    //     if (!$user->hasRole('volunteer')) {
+    //         return response()->json(['success' => false, 'message' => 'Unauthorized. This route is for volunteers only.'], 403);
+    //     }
+
+    //     $volunteer = $user->volunteer;
+
+    //     $validator = Validator::make($request->all(), [
+    //         'full_name'    => 'sometimes|required|string|max:255',
+    //         'phone_number' => 'sometimes|required|string|max:20',
+    //         'governorate'  => 'sometimes|required|string|max:100',
+    //         'photo'          => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
+    //         'skills'            => 'sometimes|string',
+    //         'available_hours'   => 'sometimes|integer',
+    //     ]);
+
+    //     if ($validator->fails()) {
+    //         return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+    //     }
+    //     if ($request->hasFile('photo')) {
+
+    // // حذف الصورة القديمة
+    //     if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+    //         Storage::disk('public')->delete($user->photo);
+    //     }
+
+    //     // حفظ الجديدة
+    //     $user->photo = $request->file('photo')->store('users', 'public');
+    // }
+
+    //     DB::transaction(function () use ($request, $user, $volunteer) {
+    //         $user->update($request->only(['full_name', 'phone_number', 'governorate' , 'photo']));
+
+    //         if ($volunteer) {
+    //             $volunteer->update($request->only(['skills', 'available_hours']));
+    //         }
+    //     });
+
+    //     $user->load('volunteer');
+
+    //     return response()->json([
+    //         'success' => true,
+    //         'message' => 'Volunteer profile updated successfully.',
+    //         'data'    => $user
+    //     ], 200);
+    // }
+    public function updateVolunteerProfile(Request $request)
+{
+    $user = $request->user();
+
+    if (!$user->hasRole('volunteer')) {
         return response()->json([
-            'success' => true,
-            'message' => 'Volunteer profile updated successfully.',
-            'data'    => $user
-        ], 200);
+            'success' => false, 
+            'message' => 'Unauthorized. This route is for volunteers only.'
+        ], 403);
     }
+
+    $volunteer = $user->volunteer;
+
+    $validator = Validator::make($request->all(), [
+        'full_name'       => 'sometimes|required|string|max:255',
+        'phone_number'    => 'sometimes|required|string|max:20',
+        'governorate'     => 'sometimes|required|string|max:100',
+        'photo'           => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
+        'skills'          => 'sometimes|string',
+        'available_hours' => 'sometimes|integer',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+    }
+
+    $photoPath = $user->photo; // الاحتفاظ بالمسار القديم افتراضياً
+
+    // معالجة رفع الصورة
+    if ($request->hasFile('photo')) {
+        // 1. حذف الصورة القديمة إذا كانت موجودة
+        if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+            Storage::disk('public')->delete($user->photo);
+        }
+
+        // 2. حفظ الصورة الجديدة وأخذ مسارها النصي
+        $path = $request->file('photo')->store('users', 'public');
+        $photoPath = Storage::url($path); // أو $path حسب كيفية تخزين المسارات لديك في المشروع
+    }
+
+    // التحديث داخل الـ Transaction
+    DB::transaction(function () use ($request, $user, $volunteer, $photoPath) {
+        $userData = $request->only(['full_name', 'phone_number', 'governorate']);
+        
+        // إسناد مسار الصورة النصي
+        if ($request->hasFile('photo')) {
+            $userData['photo'] = $photoPath;
+        }
+
+        $user->update($userData);
+
+        if ($volunteer) {
+            $volunteer->update($request->only(['skills', 'available_hours']));
+        }
+    });
+
+    $user->load('volunteer');
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Volunteer profile updated successfully.',
+        'data'    => $user
+    ], 200);
+}
 }

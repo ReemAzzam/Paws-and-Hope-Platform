@@ -25,9 +25,7 @@ class FirebaseService
         $this->messaging = $factory->createMessaging();
     }
 
-    /**
-     * إرسال إشعار إلى Token واحد
-     */
+
     public function sendToToken(
         string $token,
         string $title,
@@ -64,9 +62,6 @@ class FirebaseService
         }
     }
 
-    /**
-     * إرسال إشعار لكل أجهزة المستخدم
-     */
     public function sendToUser(
         User $user,
         string $title,

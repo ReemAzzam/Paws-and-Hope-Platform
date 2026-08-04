@@ -221,6 +221,19 @@ Route::prefix('v1')->group(function () {
             //  ======== Rescue Management ========
         Route::prefix('rescue/reports')->group(function () {
             Route::get('/my', [RescueReportController::class, 'myRescueReports']);
+
+            Route::get('/assigned', [RescueReportController::class, 'assignedReports'])
+                ->middleware('role:volunteer');
+
+            Route::get('/history', [RescueReportController::class, 'rescueHistory'])
+                ->middleware('role:volunteer');
+
+            Route::get('/stats', [RescueReportController::class, 'volunteerStats'])
+                ->middleware('role:volunteer');
+
+            Route::post('/{id}/cancel-accept', [RescueReportController::class, 'cancelAcceptance'])
+                ->middleware('role:volunteer');
+            
             // تحديث حالة البلاغ (المتطوع المكلّف فقط)
             Route::put('/{id}/status', [RescueReportController::class, 'updateStatus'])
                 ->middleware('role:volunteer');
