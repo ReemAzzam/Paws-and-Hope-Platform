@@ -66,6 +66,7 @@ public function store(Request $request)
         'color'                => 'nullable|string',
         'description'          => 'required|string|min:30',
         'location_description' => 'required|string|min:10',
+        'incident_at'          => 'required|date|before_or_equal:now',
         'latitude'             => 'required|numeric|between:-90,90',
         'longitude'            => 'required|numeric|between:-180,180',
         'contact_phone'        => 'nullable|string',
@@ -75,7 +76,7 @@ public function store(Request $request)
         'neutered'             => 'boolean',
         'temperament'          => 'nullable|string',
         'images'               => 'nullable|array',
-        'images.*'             => 'image|mimes:jpeg,png,jpg,gif|max:5120', // ← تعديل مهم
+        'images.*'             => 'image|mimes:jpeg,png,jpg,gif,avif|max:5120', // ← تعديل مهم
     ]);
 
     if ($validator->fails()) {
@@ -97,21 +98,25 @@ public function store(Request $request)
     $postData = $request->except('images');
     $postData['user_id'] = $user->id;
 
+    $postData['incident_at'] = $request->incident_at;
     $post = $this->service->createPost($postData);
+
 
     // رفع الصور كملفات عادية
     if ($request->hasFile('images')) {
         foreach ($request->file('images') as $index => $image) {
-            $path = $image->store('lost-found/' . $post->id, 'public');
 
-            LostFoundPhoto::create([
-                'lost_found_id' => $post->id,
-                'photo_url'     => Storage::url($path),
-                'is_main'       => $index === 0,
-                'order_number'  => $index,
-            ]);
+        $path = $image->store('lost-found/' . $post->id, 'public');
+
+        LostFoundPhoto::create([
+            'lost_found_id' => $post->id,
+            'photo_url'     => $path,
+            'is_main'       => $index === 0,
+            'order_number'  => $index,
+        ]);
         }
     }
+
 
     $post->load('photos');
 
@@ -167,8 +172,10 @@ public function store(Request $request)
         'location' => [
             'address'     => $lostFound->location_description,
             'subNotes'    => '',
-            'date'        => $lostFound->created_at->format('M d, Y'),
-            'time'        => $lostFound->created_at->format('g:i A'),
+            'date'        => optional($lostFound->incident_at)->format('M d, Y') 
+                        ?? $lostFound->created_at->format('M d, Y'),
+            'time'        => optional($lostFound->incident_at)->format('g:i A') 
+                        ?? $lostFound->created_at->format('g:i A'),
             'coordinates' => [$lostFound->latitude, $lostFound->longitude]
         ],
 
@@ -182,11 +189,9 @@ public function store(Request $request)
             'email'         => $lostFound->user->email
         ],
 
-        // مسار الصور من جدول lost_found_photos
-        'images' => $lostFound->photos->map(function ($photo) {
-            $filename = basename($photo->photo_url);
-            return "/images/" . $filename;   // الشكل المطلوب
-        })->toArray()
+      'images' => $lostFound->photos->map(function ($photo) {
+                return asset('storage/' . ltrim($photo->photo_url, '/')); 
+            })->values()->toArray(),
     ];
 
     return response()->json([
@@ -195,20 +200,40 @@ public function store(Request $request)
     ]);
 }
     // ====================== Similar Posts ======================
-    public function similarPosts(LostFound $lostFound)
-    {
-        $similar = LostFound::where('id', '!=', $lostFound->id)
-            ->where('status', 'open')
-            ->where('animal_type', $lostFound->animal_type)
-            ->with('photos')
-            ->limit(6)
-            ->get();
+ public function similarPosts(LostFound $lostFound)
+{
+    $similar = LostFound::where('id', '!=', $lostFound->id)
+        ->where('status', 'open')
+        ->where('animal_type', $lostFound->animal_type)
+        ->with('photos')
+        ->latest()
+        ->limit(6)
+        ->get();
 
-        return response()->json([
-            'success' => true,
-            'data'    => $similar
-        ]);
-    }
+    $data = $similar->map(function ($post) {
+        return [
+            'id' => $post->id,
+            'type' => ucfirst($post->animal_type),
+            'status' => $post->post_type === 'lost' ? 'LOST PET' : 'FOUND PET',
+            'name' => $post->name ?? 'Unknown',
+            'breed' => $post->breed,
+            'gender' => ucfirst($post->gender ?? 'Unknown'),
+            'size' => ucfirst($post->size ?? 'Unknown'),
+            'age' => $post->age,
+            'color' => $post->color,
+            'description' => $post->description,
+
+           'images' => $post->photos->map(function ($photo) {
+                 return asset('storage/' . ltrim($photo->photo_url, '/'));
+              })->values()->toArray(),
+        ];
+    });
+
+    return response()->json([
+        'success' => true,
+        'data' => $data
+    ]);
+}
 
     // ====================== تغيير حالة المنشور ======================
     public function updateStatus(Request $request, LostFound $lostFound)
@@ -252,8 +277,7 @@ public function store(Request $request)
 
         // حذف الصور من التخزين
         foreach ($lostFound->photos as $photo) {
-            $path = str_replace('/storage/', '', $photo->photo_url);
-            Storage::disk('public')->delete($path);
+          Storage::disk('public')->delete($photo->photo_url);
         }
 
         $lostFound->delete();

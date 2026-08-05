@@ -27,9 +27,6 @@ return new class extends Migration {
         $table->enum('availability_status', ['available', 'pending', 'adopted', 'sponsored', 'under_treatment'])->default('under_treatment');
         $table->boolean('is_urgent')->default(false);
 
-        $table->decimal('latitude', 10, 8)->nullable();
-        $table->decimal('longitude', 11, 8)->nullable();
-
         $table->unsignedBigInteger('vet_id')->nullable();
         $table->unsignedBigInteger('rescue_report_id')->nullable();
 

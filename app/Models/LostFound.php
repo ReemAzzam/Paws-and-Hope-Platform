@@ -18,7 +18,7 @@ class LostFound extends Model
         'size', 'age', 'color', 'description', 'location_description',
         'latitude', 'longitude', 'contact_phone', 'image_url', 'status',
         'distinctive_marks', 'collar_tags', 'microchipped', 'neutered',
-        'temperament', 'views'
+        'temperament', 'views' , 'incident_at'
     ];
 
     protected $casts = [
@@ -27,6 +27,7 @@ class LostFound extends Model
         'microchipped' => 'boolean',
         'neutered'     => 'boolean',
         'views'        => 'integer',
+        'incident_at' => 'datetime',
     ];
 
     public function user()

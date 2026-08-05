@@ -14,7 +14,7 @@ class Animal extends Model
         'name', 'type', 'gender', 'age', 'size', 'weight',
         'description', 'story', 'health_status', 'is_vaccinated',
         'is_neutered', 'is_adoptable', 'availability_status', 'is_urgent',
-        'latitude', 'longitude', 'vet_id', 'rescue_report_id'
+         'vet_id', 'rescue_report_id'
     ];
 
     public function vet()

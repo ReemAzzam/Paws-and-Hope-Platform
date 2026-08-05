@@ -102,13 +102,11 @@ class AnimalController extends Controller
             'description'         => 'nullable|string',
             'vet_id'              => 'nullable|exists:veterinarians,id',
             'rescue_report_id'    => 'nullable|exists:rescue_reports,id',
-            'latitude'            => 'nullable|numeric|between:-90,90',
-            'longitude'           => 'nullable|numeric|between:-180,180',
             'availability_status' => 'in:available,pending,adopted,sponsored,under_treatment',
             'is_urgent'           => 'boolean',
             'is_vaccinated'       => 'boolean',
             'is_neutered'         => 'boolean',
-            'photos.*'            => 'image|mimes:jpeg,png,jpg,gif|max:5120',
+            'photos.*'            => 'image|mimes:jpeg,png,jpg,gif,avif|max:5120',
         ]);
 
         if ($validator->fails()) {

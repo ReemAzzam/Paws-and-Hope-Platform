@@ -2,245 +2,469 @@
 
 namespace Database\Seeders;
 
-use Illuminate\Database\Seeder;
+use App\Models\User;
 use App\Models\LostFound;
 use App\Models\LostFoundPhoto;
-use Illuminate\Support\Facades\DB;
+use Illuminate\Database\Seeder;
+use Illuminate\Support\Facades\Storage;
 
 class LostFoundSeeder extends Seeder
 {
-    public function run()
+    public function run(): void
     {
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        LostFoundPhoto::truncate();
-        LostFound::truncate();
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        /*
+        |--------------------------------------------------------------------------
+        | Get users
+        |--------------------------------------------------------------------------
+        |
+        | We use existing users instead of creating fake users.
+        |
+        */
+
+        $users = User::limit(5)->get();
+
+        if ($users->isEmpty()) {
+            $this->command->error(
+                'No users found. Please create users before running LostFoundSeeder.'
+            );
+
+            return;
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Clear old Lost & Found data
+        |--------------------------------------------------------------------------
+        */
+
+        LostFoundPhoto::query()->delete();
+        LostFound::query()->delete();
+
+        /*
+        |--------------------------------------------------------------------------
+        | Remove old Lost & Found images
+        |--------------------------------------------------------------------------
+        */
+
+        Storage::disk('public')->deleteDirectory('lost-found');
+
+        /*
+        |--------------------------------------------------------------------------
+        | Lost & Found Posts
+        |--------------------------------------------------------------------------
+        */
 
         $posts = [
-            // 1. Max - Lost Dog
+
             [
-                'post_type'            => 'lost',
-                'animal_type'          => 'dog',
-                'name'                 => 'Max',
-                'breed'                => 'Golden Retriever',
-                'gender'               => 'male',
-                'size'                 => 'large',
-                'age'                  => '2 Years',
-                'color'                => 'Golden',
-                'description'          => 'Max is a very friendly and energetic golden retriever. He was last seen running towards the main road near Al Mazzeh park while wearing a blue collar. He responds to his name and loves people.',
-                'location_description' => 'Al Mazzeh Park, Damascus, Syria',
-                'latitude'             => 33.5102,
-                'longitude'            => 36.2625,
-                'contact_phone'        => '+963 944 123 456',
-                'distinctive_marks'    => 'White spot on front chest',
-                'collar_tags'          => 'Blue collar, no tag',
-                'microchipped'         => false,
-                'neutered'             => true,
-                'temperament'          => 'Friendly, Playful',
-                'user_id'              => 1,
-                'created_at'           => now()->subDays(50),
+                'post_type' => 'lost',
+                'animal_type' => 'dog',
+                'name' => 'Max',
+                'breed' => 'Golden Retriever',
+                'gender' => 'male',
+                'size' => 'large',
+                'age' => '3 years',
+                'color' => 'Golden',
+                'description' =>
+                    'Max went missing from the neighborhood yesterday evening. ' .
+                    'He is friendly and usually responds when his name is called. ' .
+                    'Please contact us if you have seen him anywhere nearby.',
+                'location_description' => 'Near Central Park',
+                'incident_at' =>'2026-06-04 12:30:00',
+                'latitude' => 52.3676,
+                'longitude' => 4.9041,
+                'contact_phone' => '+31612345678',
+                'distinctive_marks' => 'Small white mark on his chest',
+                'collar_tags' => 'Blue collar with metal tag',
+                'microchipped' => true,
+                'neutered' => true,
+                'temperament' => 'Friendly and playful',
+                'images' => [
+                    'dog1.avif',
+                    'dog2.avif',
+                ],
             ],
 
-            // 2. Unknown Cat - Found
             [
-                'post_type'            => 'found',
-                'animal_type'          => 'cat',
-                'name'                 => null,
-                'breed'                => 'Shirazi',
-                'gender'               => 'female',
-                'size'                 => 'small',
-                'age'                  => '6 Months',
-                'color'                => 'White/Grey',
-                'description'          => 'Found this beautiful cat wandering alone. Very clean, seems like a house pet. Safe with us for now.',
-                'location_description' => 'Abu Rummaneh, Damascus, Syria',
-                'latitude'             => 33.5192,
-                'longitude'            => 36.2835,
-                'contact_phone'        => '+963 933 777 888',
-                'distinctive_marks'    => 'Green eyes, very fluffy tail',
-                'collar_tags'          => null,
-                'microchipped'         => false,
-                'neutered'             => false,
-                'temperament'          => 'Scared, Quiet',
-                'user_id'              => 2,
-                'created_at'           => now()->subDays(30),
+                'post_type' => 'found',
+                'animal_type' => 'cat',
+                'name' => 'Unknown',
+                'breed' => 'British Shorthair',
+                'gender' => 'female',
+                'size' => 'medium',
+                'age' => 'Approximately 2 years',
+                'color' => 'Gray',
+                'description' =>
+                    'A friendly gray cat was found near the residential area. ' .
+                    'She appears healthy and well cared for. ' .
+                    'We are looking for her owner.',
+                'location_description' => 'Residential Street',
+                'incident_at' =>'2026-07-07 18:30:00',
+                'latitude' => 52.3702,
+                'longitude' => 4.8952,
+                'contact_phone' => '+31623456789',
+                'distinctive_marks' => 'White patch under the chin',
+                'collar_tags' => null,
+                'microchipped' => false,
+                'neutered' => true,
+                'temperament' => 'Calm and affectionate',
+                'images' => [
+                    'cat1.avif',
+                    'cat2.avif',
+                    'cat3.avif',
+                ],
             ],
 
-            // 3. Bunny - Lost Rabbit
             [
-                'post_type'            => 'lost',
-                'animal_type'          => 'rabbit',
-                'name'                 => 'Bunny',
-                'breed'                => 'Angora Rabbit',
-                'gender'               => 'male',
-                'size'                 => 'small',
-                'age'                  => '1 Year',
-                'color'                => 'Pure White',
-                'description'          => 'Our beloved Angora rabbit Bunny went missing from our home backyard in Dummar.',
-                'location_description' => 'Dummar Project, Damascus, Syria',
-                'latitude'             => 33.5284,
-                'longitude'            => 36.2301,
-                'contact_phone'        => '+963 955 444 333',
-                'distinctive_marks'    => 'Long floppy ears, very soft long fur',
-                'collar_tags'          => null,
-                'microchipped'         => false,
-                'neutered'             => false,
-                'temperament'          => 'Gentle, Timid',
-                'user_id'              => 3,
-                'created_at'           => now()->subDays(12),
+                'post_type' => 'lost',
+                'animal_type' => 'cat',
+                'name' => 'Luna',
+                'breed' => 'Persian',
+                'gender' => 'female',
+                'size' => 'medium',
+                'age' => '4 years',
+                'color' => 'White',
+                'description' =>
+                    'Luna disappeared from our home two days ago. ' .
+                    'She has long white fur and is usually shy around strangers. ' .
+                    'Any information about her location would be greatly appreciated.',
+                'location_description' => 'Near the City Center',
+                'incident_at' =>'2026-08-04 18:30:00',
+                'latitude' => 52.3738,
+                'longitude' => 4.8910,
+                'contact_phone' => '+31634567890',
+                'distinctive_marks' => 'Long white fur and blue eyes',
+                'collar_tags' => 'Pink collar',
+                'microchipped' => true,
+                'neutered' => true,
+                'temperament' => 'Shy',
+                'images' => [
+                    'cat2.avif',
+                ],
             ],
 
-            // 4. Rocky - Found Dog
             [
-                'post_type'            => 'found',
-                'animal_type'          => 'dog',
-                'name'                 => 'Rocky',
-                'breed'                => 'German Shepherd',
-                'gender'               => 'male',
-                'size'                 => 'large',
-                'age'                  => '3 Years',
-                'color'                => 'Black & Tan',
-                'description'          => 'Found this majestic German Shepherd tonight near Cham City Center.',
-                'location_description' => 'Kfar Souseh, Damascus, Syria',
-                'latitude'             => 33.5015,
-                'longitude'            => 36.2692,
-                'contact_phone'        => '+963 988 555 222',
-                'distinctive_marks'    => 'Very well trained, wears a leather collar',
-                'collar_tags'          => 'Wears a heavy leather collar but the nameplate is scratched',
-                'microchipped'         => true,
-                'neutered'             => true,
-                'temperament'          => 'Calm, Alert, Obedient',
-                'user_id'              => 4,
-                'created_at'           => now()->subDays(10),
+                'post_type' => 'found',
+                'animal_type' => 'dog',
+                'name' => 'Unknown',
+                'breed' => 'Labrador',
+                'gender' => 'male',
+                'size' => 'large',
+                'age' => 'Approximately 5 years',
+                'color' => 'Black',
+                'description' =>
+                    'A black Labrador was found walking alone near the main road. ' .
+                    'He is very friendly and seems comfortable around people. ' .
+                    'We are trying to find his owner.',
+                'location_description' => 'Main Road',
+                'incident_at' =>'2026-01-01 18:30:00',
+                'latitude' => 52.3600,
+                'longitude' => 4.9150,
+                'contact_phone' => '+31645678901',
+                'distinctive_marks' => 'White spot on the front paw',
+                'collar_tags' => 'Black collar',
+                'microchipped' => false,
+                'neutered' => false,
+                'temperament' => 'Friendly',
+                'images' => [
+                    'dog2.avif',
+                    'dog3.avif',
+                ],
             ],
 
-            // 5. Bella - Lost Cat
             [
-                'post_type'            => 'lost',
-                'animal_type'          => 'cat',
-                'name'                 => 'Bella',
-                'breed'                => 'Siamese',
-                'gender'               => 'female',
-                'size'                 => 'small',
-                'age'                  => '1.5 Years',
-                'color'                => 'Cream/Brown',
-                'description'          => 'Bella is a beautiful Siamese cat with distinctive blue eyes.',
-                'location_description' => 'Al-Shaalan, Damascus, Syria',
-                'latitude'             => 33.5156,
-                'longitude'            => 36.2895,
-                'contact_phone'        => '+963 933 111 222',
-                'distinctive_marks'    => 'Deep blue eyes and dark brown paws',
-                'collar_tags'          => 'Pink collar with a small bell',
-                'microchipped'         => true,
-                'neutered'             => true,
-                'temperament'          => 'Vocal, Affectionate, Curious',
-                'user_id'              => 5,
-                'created_at'           => now()->subDays(8),
+                'post_type' => 'lost',
+                'animal_type' => 'bird',
+                'name' => 'Kiwi',
+                'breed' => 'Parakeet',
+                'gender' => 'unknown',
+                'size' => 'small',
+                'age' => '1 year',
+                'color' => 'Green and yellow',
+                'description' =>
+                    'Kiwi flew away from home while the window was open. ' .
+                    'He is a small green and yellow parakeet and may be scared. ' .
+                    'Please contact us if you spot him.',
+                'location_description' => 'Residential Area',
+                'incident_at' =>'2026-08-01 18:30:00',
+                'latitude' => 52.3615,
+                'longitude' => 4.9000,
+                'contact_phone' => '+31656789012',
+                'distinctive_marks' => 'Yellow feathers around the head',
+                'collar_tags' => null,
+                'microchipped' => false,
+                'neutered' => false,
+                'temperament' => 'Active',
+                'images' => [
+                    'bird1.avif',
+                    'bird2.avif',
+                ],
             ],
 
-            // 6. Husky - Found Dog
             [
-                'post_type'            => 'found',
-                'animal_type'          => 'dog',
-                'name'                 => null,
-                'breed'                => 'Siberian Husky',
-                'gender'               => 'male',
-                'size'                 => 'large',
-                'age'                  => 'About 1 Year',
-                'color'                => 'Black & White',
-                'description'          => 'Found this gorgeous Husky puppy wandering alone in Dummar.',
-                'location_description' => 'Project Dummar, Damascus, Syria',
-                'latitude'             => 33.5312,
-                'longitude'            => 36.2245,
-                'contact_phone'        => '+963 955 888 999',
-                'distinctive_marks'    => 'One blue eye and one brown eye',
-                'collar_tags'          => 'Red nylon collar',
-                'microchipped'         => false,
-                'neutered'             => false,
-                'temperament'          => 'Energetic, Playful, Friendly',
-                'user_id'              => 6,
-                'created_at'           => now()->subDays(6),
+                'post_type' => 'found',
+                'animal_type' => 'rabbit',
+                'name' => 'Unknown',
+                'breed' => 'Mini Lop',
+                'gender' => 'female',
+                'size' => 'small',
+                'age' => 'Approximately 1 year',
+                'color' => 'Brown and white',
+                'description' =>
+                    'A small rabbit was found in a public garden. ' .
+                    'It appears to be domesticated and comfortable around people. ' .
+                    'We are looking for the owner.',
+                'location_description' => 'Public Garden',
+                'incident_at' =>'2026-08-02 01:00:00',
+                'latitude' => 52.3650,
+                'longitude' => 4.9100,
+                'contact_phone' => '+31667890123',
+                'distinctive_marks' => 'White stripe on forehead',
+                'collar_tags' => null,
+                'microchipped' => false,
+                'neutered' => false,
+                'temperament' => 'Calm',
+                'images' => [
+                    'rabbit1.avif',
+                ],
             ],
 
-            // 7. Oliver - Lost Cat
             [
-                'post_type'            => 'lost',
-                'animal_type'          => 'cat',
-                'name'                 => 'Oliver',
-                'breed'                => 'British Shorthair',
-                'gender'               => 'male',
-                'size'                 => 'medium',
-                'age'                  => '3 Years',
-                'color'                => 'Solid Grey',
-                'description'          => 'Our beloved grey British Shorthair Oliver went missing last night.',
-                'location_description' => 'Malki, Damascus, Syria',
-                'latitude'             => 33.5188,
-                'longitude'            => 36.2762,
-                'contact_phone'        => '+963 944 555 111',
-                'distinctive_marks'    => 'Chubby cheeks and intense amber eyes',
-                'collar_tags'          => null,
-                'microchipped'         => true,
-                'neutered'             => true,
-                'temperament'          => 'Calm, Lazy, Independent',
-                'user_id'              => 7,
-                'created_at'           => now()->subDays(5),
+                'post_type' => 'lost',
+                'animal_type' => 'dog',
+                'name' => 'Buddy',
+                'breed' => 'Beagle',
+                'gender' => 'male',
+                'size' => 'medium',
+                'age' => '2 years',
+                'color' => 'Brown, white and black',
+                'description' =>
+                    'Buddy went missing while walking with his owner. ' .
+                    'He is energetic but friendly and may approach people looking for food. ' .
+                    'Please contact us immediately if you see him.',
+                'location_description' => 'Near Riverside',
+                'incident_at' =>'2026-08-04 10:15:00',
+                'latitude' => 52.3550,
+                'longitude' => 4.9050,
+                'contact_phone' => '+31678901234',
+                'distinctive_marks' => 'Brown patch around right eye',
+                'collar_tags' => 'Red collar',
+                'microchipped' => true,
+                'neutered' => true,
+                'temperament' => 'Energetic',
+                'images' => [
+                    'dog1.avif',
+                    'dog3.avif',
+                ],
             ],
 
-            // 8. Charlie - Found Parrot
             [
-                'post_type'            => 'found',
-                'animal_type'          => 'bird',
-                'name'                 => 'Charlie',
-                'breed'                => 'Cockatiel',
-                'gender'               => 'male',
-                'size'                 => 'small',
-                'age'                  => null,
-                'color'                => 'Grey & Yellow',
-                'description'          => 'A friendly yellow and grey Cockatiel parrot flew straight into our house.',
-                'location_description' => 'Bab Touma, Damascus, Syria',
-                'latitude'             => 33.5134,
-                'longitude'            => 36.3123,
-                'contact_phone'        => '+963 999 222 333',
-                'distinctive_marks'    => 'Bright orange circular patches on cheeks',
-                'collar_tags'          => 'Small silver ring on left leg',
-                'microchipped'         => false,
-                'neutered'             => false,
-                'temperament'          => 'Whistles melodies, Gentle',
-                'user_id'              => 8,
-                'created_at'           => now()->subDays(4),
+                'post_type' => 'found',
+                'animal_type' => 'cat',
+                'name' => 'Unknown',
+                'breed' => 'Domestic Shorthair',
+                'gender' => 'male',
+                'size' => 'small',
+                'age' => 'Approximately 1 year',
+                'color' => 'Orange',
+                'description' =>
+                    'A young orange cat was found near a shopping area. ' .
+                    'He is very friendly and seems used to living with people. ' .
+                    'The owner is currently unknown.',
+                'location_description' => 'Shopping Area',
+                'incident_at' =>'2026-08-02 11:30:00',
+                'latitude' => 52.3680,
+                'longitude' => 4.9120,
+                'contact_phone' => '+31689012345',
+                'distinctive_marks' => 'White paws',
+                'collar_tags' => null,
+                'microchipped' => false,
+                'neutered' => false,
+                'temperament' => 'Very friendly',
+                'images' => [
+                    'cat1.avif',
+                    'cat3.avif',
+                ],
+            ],
+
+            [
+                'post_type' => 'lost',
+                'animal_type' => 'other',
+                'name' => 'Coco',
+                'breed' => 'Guinea Pig',
+                'gender' => 'female',
+                'size' => 'small',
+                'age' => '8 months',
+                'color' => 'White and brown',
+                'description' =>
+                    'Coco escaped from her enclosure and may be hiding nearby. ' .
+                    'She is small and usually calm around people. ' .
+                    'Please contact us if you find her.',
+                'location_description' => 'Near Residential Buildings',
+                'incident_at' =>'2026-07-29 18:20:00',
+                'latitude' => 52.3590,
+                'longitude' => 4.8950,
+                'contact_phone' => '+31690123456',
+                'distinctive_marks' => 'Brown patch on the back',
+                'collar_tags' => null,
+                'microchipped' => false,
+                'neutered' => false,
+                'temperament' => 'Calm',
+                'images' => [
+                    'rabbit2.avif',
+                ],
+            ],
+
+            [
+                'post_type' => 'found',
+                'animal_type' => 'dog',
+                'name' => 'Unknown',
+                'breed' => 'Mixed Breed',
+                'gender' => 'female',
+                'size' => 'medium',
+                'age' => 'Approximately 3 years',
+                'color' => 'Brown',
+                'description' =>
+                    'A brown mixed-breed dog was found near a local park. ' .
+                    'She is calm and appears healthy. ' .
+                    'We are searching for her owner and would appreciate any information.',
+                'location_description' => 'Local Park',
+                'incident_at' =>'2026-08-04 18:30:00',
+                'latitude' => 52.3710,
+                'longitude' => 4.9180,
+                'contact_phone' => '+31601234567',
+                'distinctive_marks' => 'White mark on the nose',
+                'collar_tags' => 'Green collar',
+                'microchipped' => false,
+                'neutered' => true,
+                'temperament' => 'Calm and friendly',
+                'images' => [
+                    'dog2.avif',
+                    'dog3.avif',
+                ],
+            ],
+
+            [
+                'post_type' => 'lost',
+                'animal_type' => 'cat',
+                'name' => 'Milo',
+                'breed' => 'Siamese',
+                'gender' => 'male',
+                'size' => 'medium',
+                'age' => '3 years',
+                'color' => 'Cream and brown',
+                'description' =>
+                    'Milo disappeared after going outside in the afternoon. ' .
+                    'He has distinctive dark ears and blue eyes. ' .
+                    'He may be hiding around nearby houses.',
+                'location_description' => 'Near Residential Area',
+                'incident_at' =>'2026-08-04 18:30:00',
+                'latitude' => 52.3630,
+                'longitude' => 4.9070,
+                'contact_phone' => '+31612398765',
+                'distinctive_marks' => 'Blue eyes and dark ears',
+                'collar_tags' => 'Blue collar',
+                'microchipped' => true,
+                'neutered' => true,
+                'temperament' => 'Quiet',
+                'images' => [
+                    'cat1.avif',
+                    'cat2.avif',
+                ],
+            ],
+
+            [
+                'post_type' => 'found',
+                'animal_type' => 'bird',
+                'name' => 'Unknown',
+                'breed' => 'Cockatiel',
+                'gender' => 'unknown',
+                'size' => 'small',
+                'age' => 'Unknown',
+                'color' => 'Gray and yellow',
+                'description' =>
+                    'A cockatiel was found near a residential building. ' .
+                    'The bird appears domesticated and comfortable around people. ' .
+                    'We are looking for its owner.',
+                'location_description' => 'Residential Building',
+                'incident_at' =>'2026-08-04 17:00:00',
+                'latitude' => 52.3690,
+                'longitude' => 4.9000,
+                'contact_phone' => '+31623498765',
+                'distinctive_marks' => 'Yellow face and orange cheeks',
+                'collar_tags' => null,
+                'microchipped' => false,
+                'neutered' => false,
+                'temperament' => 'Calm',
+                'images' => [
+                    'bird1.avif',
+                ],
             ],
         ];
 
-        foreach ($posts as $index => $data) {
-            $post = LostFound::create($data);
+        /*
+        |--------------------------------------------------------------------------
+        | Create Posts + Photos
+        |--------------------------------------------------------------------------
+        */
 
-            // إضافة الصور
-            $imageList = $this->getMockImages($index + 1);
-            foreach ($imageList as $i => $imgPath) {
+        foreach ($posts as $index => $postData) {
+
+            $imageFiles = $postData['images'];
+
+            unset($postData['images']);
+
+            // Assign users in rotation
+            $user = $users[$index % $users->count()];
+
+            $postData['user_id'] = $user->id;
+            $postData['status'] = 'open';
+            $postData['views'] = rand(0, 50);
+
+            $post = LostFound::create($postData);
+
+            /*
+            |--------------------------------------------------------------------------
+            | Copy images to storage
+            |--------------------------------------------------------------------------
+            */
+
+            foreach ($imageFiles as $imageIndex => $imageFile) {
+
+                $sourcePath = database_path(
+                    'seeders/assets/lost-found/' . $imageFile
+                );
+
+                if (!file_exists($sourcePath)) {
+                    $this->command->warn(
+                        "Image not found: {$sourcePath}"
+                    );
+
+                    continue;
+                }
+
+                $extension = pathinfo($imageFile, PATHINFO_EXTENSION);
+
+                $fileName = uniqid() . '.' . $extension;
+
+                $storagePath = 'lost-found/' . $post->id . '/' . $fileName;
+
+                Storage::disk('public')->put(
+                    $storagePath,
+                    file_get_contents($sourcePath)
+                );
+
                 LostFoundPhoto::create([
                     'lost_found_id' => $post->id,
-                    'photo_url'     => $imgPath,
-                    'is_main'       => $i === 0,
-                    'order_number'  => $i,
+                    'photo_url' => $storagePath,
+                    'is_main' => $imageIndex === 0,
+                    'order_number' => $imageIndex,
                 ]);
             }
         }
 
-
-    }
-
-    private function getMockImages($postId)
-    {
-        $images = [
-            1 => ['/images/max1.png', '/images/max2.png', '/images/max3.png'],
-            2 => ['/images/catshirazi1.png', '/images/catshirazi2.png', '/images/catshirazi3.png', '/images/catshirazi4.png'],
-            3 => ['/images/angorarabbit2.png', '/images/angorarabbit3.png', '/images/angorarabbit4.png'],
-            4 => ['/images/german1.png', '/images/german2.png', '/images/german3.png', '/images/german4.png'],
-            5 => ['/images/bella1.png', '/images/bella2.png', '/images/bella3.png', '/images/bella4.png'],
-            6 => ['/images/husky1.png', '/images/husky2.png', '/images/husky3.png', '/images/husky4.png'],
-            7 => ['/images/oliver1.png', '/images/oliver2.png', '/images/oliver3.png', '/images/oliver4.png'],
-            8 => ['/images/Charlie1.png', '/images/Charlie2.png', '/images/Charlie3.png', '/images/Charlie4.png'],
-        ];
-
-        return $images[$postId] ?? [];
+        $this->command->info(
+            'Lost & Found posts and photos seeded successfully.'
+        );
     }
 }

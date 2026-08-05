@@ -38,6 +38,7 @@ return new class extends Migration {
 
             $table->integer('views')->default(0);
             $table->enum('status', ['open', 'resolved', 'closed'])->default('open');
+            $table->timestamp('incident_at')->nullable();
 
             $table->timestamps();
             $table->softDeletes();
