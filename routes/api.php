@@ -123,6 +123,9 @@ Route::prefix('v1')->group(function () {
 
         Route::post('/logout', [LoginController::class, 'logout']);
 
+        // after google signup
+        Route::post('/auth/select-role', [GoogleAuthController::class, 'selectRole']);
+
         // Profile
         Route::prefix('profile')->group(function(){
             //Regular user Profile
@@ -233,7 +236,7 @@ Route::prefix('v1')->group(function () {
 
             Route::post('/{id}/cancel-accept', [RescueReportController::class, 'cancelAcceptance'])
                 ->middleware('role:volunteer');
-            
+
             // تحديث حالة البلاغ (المتطوع المكلّف فقط)
             Route::put('/{id}/status', [RescueReportController::class, 'updateStatus'])
                 ->middleware('role:volunteer');
