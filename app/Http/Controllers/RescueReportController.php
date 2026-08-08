@@ -62,7 +62,7 @@ class RescueReportController extends Controller
                 }
             }
 
-            /*$template = NotificationTemplates::newRescueReport($report);
+            $template = NotificationTemplates::newRescueReport($report);
 
             // المتطوعون ضمن 5 كم
             $nearbyVolunteers = User::role('volunteer')
@@ -87,7 +87,7 @@ class RescueReportController extends Controller
                     $template['body'],
                     $template['data']
                 );
-            }*/
+            }
             DB::commit();
 
             ProcessRescueReportAssignment::dispatch($report);
@@ -192,7 +192,7 @@ class RescueReportController extends Controller
         DB::beginTransaction();
         try {
             $report->save();
-            /*$template = NotificationTemplates::rescueStatusUpdated(
+            $template = NotificationTemplates::rescueStatusUpdated(
                     $report,
                     $request->status
                 );
@@ -203,7 +203,7 @@ class RescueReportController extends Controller
                     $template['body'],
                     $template['data']
                 );
-            */
+            
 
             if ($request->status === 'resolved' && $oldStatus !== 'resolved') {
 
@@ -292,8 +292,7 @@ class RescueReportController extends Controller
                 'volunteer_id' => $volunteerProfile->id,
             ]);
 
-            // 🔹 التحقق من أن صاحب البلاغ مستخدم مسجل وليس null
-            /*if ($report->user) {
+            if ($report->user) {
                 $template = NotificationTemplates::rescueAccepted($report);
                 SendNotificationEvent::dispatch(
                     $report->user,
@@ -301,7 +300,7 @@ class RescueReportController extends Controller
                     $template['body'],
                     $template['data']
                 );
-            }*/
+            }
 
             DB::commit();
 
@@ -377,8 +376,7 @@ class RescueReportController extends Controller
                 'volunteer_id' => null,
             ]);
 
-            // 🔕 تم تعليق الإشعارات للتجربة (نفس طريقة store)
-            /*
+            
             $template = NotificationTemplates::newRescueReport($report);
 
             // المتطوعون ضمن 5 كم
@@ -405,7 +403,7 @@ class RescueReportController extends Controller
                     $template['data']
                 );
             }
-            */
+
 
             DB::commit();
 

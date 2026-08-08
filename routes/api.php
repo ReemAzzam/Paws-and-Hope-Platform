@@ -197,10 +197,13 @@ Route::prefix('v1')->group(function () {
             Route::get('/donations/pending', [DonationController::class, 'getPendingDonations']);
             Route::patch('/donations/{id}/approve', [DonationController::class, 'approveDonation']);
             Route::patch('/donations/{id}/reject',  [DonationController::class, 'rejectDonation']);
+            Route::get('/donations', [DonationController::class, 'index']);
 
             //  ======== sponsorships Management ========
+                Route::get('/sponsorships/search', [SponsorshipController::class, 'search']);
                 Route::get('/sponsorships', [SponsorshipController::class, 'index']);
                 Route::get('/sponsorships/{id}', [SponsorshipController::class, 'show']);
+                Route::get('/sponsorships/search', [SponsorshipController::class, 'search']);
                 // التحقق من دفعة رعاية
                 Route::patch('/sponsorships/payments/{paymentId}/verify', [SponsorshipController::class, 'verifyPayment']);
         });

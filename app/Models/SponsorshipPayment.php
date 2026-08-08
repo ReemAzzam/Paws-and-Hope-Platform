@@ -10,7 +10,7 @@ class SponsorshipPayment extends Model
     use HasFactory;
 
     protected $fillable = [
-        'sponsorship_id', 'amount', 'payment_method', 'transaction_number', 'receipt_image_url', 'verification_status', 'verified_by', 'verified_at', 'rejection_reason'
+        'sponsorship_id', 'amount','currency', 'payment_method', 'transaction_number', 'receipt_image_url', 'verification_status', 'verified_by', 'verified_at', 'rejection_reason'
     ];
 
     public function sponsorship()
