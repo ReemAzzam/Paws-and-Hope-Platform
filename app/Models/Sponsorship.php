@@ -13,6 +13,7 @@ class Sponsorship extends Model
         'user_id',
         'animal_id',
         'monthly_amount',
+        'currency',
         'status',
         'start_date',
         'next_payment_due',

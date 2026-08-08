@@ -12,13 +12,13 @@ return new class extends Migration {
             $table->foreignId('user_id')->constrained('users')->onDelete('cascade');
             $table->foreignId('animal_id')->constrained('animals')->onDelete('cascade');
             
-            // المبلغ الشهري الثابت للكفالة الكاملة
             $table->decimal('monthly_amount', 10, 2); 
-            // حالة الكفالة (انتظار، نشطة، ملغاة، موقوفة مؤقتاً)
+            $table->enum('currency', ['SYP', 'USD'])->default('SYP');
+
             $table->enum('status', ['pending', 'active', 'cancelled', 'paused'])->default('pending'); 
             
             $table->date('start_date')->nullable();
-            $table->date('next_payment_due')->nullable(); // لمتابعة شرط الـ 45 يوماً للتخلف عن الدفع
+            $table->date('next_payment_due')->nullable(); 
             $table->text('notes')->nullable();
             $table->timestamps();
         });

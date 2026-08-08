@@ -5,13 +5,14 @@ namespace App\Http\Controllers;
 use App\Models\Sponsorship;
 use App\Models\SponsorshipPayment;
 use App\Models\Animal;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Validation\Rule;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Validator;
 use Carbon\Carbon;
-use App\Models\User;
 use App\Events\SendNotificationEvent;
 use App\Support\NotificationTemplates;
 
@@ -19,12 +20,25 @@ class SponsorshipController extends Controller
 {
     public function requestSponsorship(Request $request)
     {
+        $allowedPaymentMethods = [
+            'al_haram', 
+            'al_fouad', 
+            'syriatel_cash', 
+            'mtn_cash', 
+            'western_union', 
+            'paypal', 
+            'gofundme', 
+            'hand_delivery', 
+            'external'
+        ];
+
         $validator = Validator::make($request->all(), [
             'animal_id'          => 'required|exists:animals,id',
             'monthly_amount'     => 'required|numeric|min:0',
-            'payment_method'     => 'required|string',
+            'currency'           => 'required|in:SYP,USD', 
+            'payment_method'     => ['required', 'string', Rule::in($allowedPaymentMethods)],
             'transaction_number' => 'required|string|unique:sponsorship_payments,transaction_number|digits:12',
-            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg|max:4096', // Max 4MB
+            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg|max:4096',
             'notes'              => 'nullable|string',
         ]);
 
@@ -43,6 +57,7 @@ class SponsorshipController extends Controller
                 'user_id'        => Auth::id(),
                 'animal_id'      => $request->animal_id,
                 'monthly_amount' => $request->monthly_amount,
+                'currency'       => $request->currency, 
                 'status'         => 'pending',
                 'notes'          => $request->notes,
             ]);
@@ -53,26 +68,27 @@ class SponsorshipController extends Controller
             SponsorshipPayment::create([
                 'sponsorship_id'      => $sponsorship->id,
                 'amount'              => $request->monthly_amount,
+                'currency'            => $request->currency, 
                 'payment_method'      => $request->payment_method,
                 'transaction_number'  => $request->transaction_number,
                 'receipt_image_url'   => $receiptUrl,
                 'verification_status' => 'pending',
             ]);
+
             $admins = User::role(['admin', 'SuperAdmin'])->get();
 
             foreach ($admins as $admin) {
+                $notification = NotificationTemplates::newSponsorshipRequest(
+                    Auth::user()->full_name,
+                    $animal->name
+                );
 
-               $notification = NotificationTemplates::newSponsorshipRequest(
-                Auth::user()->full_name,
-                $animal->name
-            );
-
-            event(new SendNotificationEvent(
-                $admin,
-                $notification['title'],
-                $notification['body'],
-                $notification['data']
-            ));
+                event(new SendNotificationEvent(
+                    $admin,
+                    $notification['title'],
+                    $notification['body'],
+                    $notification['data']
+                ));
             }
 
             DB::commit();
@@ -156,9 +172,22 @@ class SponsorshipController extends Controller
             return response()->json(['message' => 'You are not authorized to renew this sponsorship.'], 403);
         }
 
+        $allowedPaymentMethods = [
+            'al_haram', 
+            'al_fouad', 
+            'syriatel_cash', 
+            'mtn_cash', 
+            'western_union', 
+            'paypal', 
+            'gofundme', 
+            'hand_delivery', 
+            'external'
+        ];
+
         $validator = Validator::make($request->all(), [
             'amount'             => 'required|numeric|min:0',
-            'payment_method'     => 'required|string',
+            'currency'           => 'required|in:SYP,USD', 
+            'payment_method'     => ['required', 'string', Rule::in($allowedPaymentMethods)], // 🟢 التحقق من الطرق المحددة
             'transaction_number' => 'required|string|unique:sponsorship_payments,transaction_number',
             'receipt_image'      => 'required|image|mimes:jpeg,png,jpg|max:4096',
         ]);
@@ -174,28 +203,28 @@ class SponsorshipController extends Controller
             $payment = SponsorshipPayment::create([
                 'sponsorship_id'      => $sponsorship->id,
                 'amount'              => $request->amount,
+                'currency'            => $request->currency, 
                 'payment_method'      => $request->payment_method,
                 'transaction_number'  => $request->transaction_number,
                 'receipt_image_url'   => $receiptUrl,
                 'verification_status' => 'pending',
             ]);
-            $animal = $sponsorship->animal;
 
+            $animal = $sponsorship->animal;
             $admins = User::role(['admin', 'SuperAdmin'])->get();
 
             foreach ($admins as $admin) {
-
                 $notification = NotificationTemplates::sponsorshipRenewal(
                     Auth::user()->full_name,
                     $animal->name
                 );
 
-               event(new SendNotificationEvent(
-                $admin,
-                $notification['title'],
-                $notification['body'],
-                $notification['data']
-            ));
+                event(new SendNotificationEvent(
+                    $admin,
+                    $notification['title'],
+                    $notification['body'],
+                    $notification['data']
+                ));
             }
 
             return response()->json([
@@ -301,6 +330,70 @@ class SponsorshipController extends Controller
         return response()->json([
             'success' => true,
             'data'    => $sponsorship
+        ], 200);
+    }
+
+    public function search(Request $request)
+    {
+        if (!Auth::user()->hasRole('admin', 'api') && !Auth::user()->hasRole('SuperAdmin', 'api')) {
+            return response()->json(['message' => 'You are not authorized to perform this action.'], 403);
+        }
+
+        $request->validate([
+            'status' => 'nullable|string|in:all,pending,active,cancelled,paused',
+            'search' => 'nullable|string|max:255',
+        ]);
+
+        $query = Sponsorship::with([
+            'sponsor:id,full_name,email', 
+            'animal:id,name',
+            'payments' => function ($q) {
+                $q->latest();
+            }
+        ]);
+
+        if ($request->filled('search')) {
+            $searchTerm = $request->search;
+            $query->where(function ($q) use ($searchTerm) {
+                $q->whereHas('sponsor', function ($userQuery) use ($searchTerm) {
+                    $userQuery->where('full_name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('animal', function ($animalQuery) use ($searchTerm) {
+                    $animalQuery->where('name', 'like', "%{$searchTerm}%");
+                })
+                ->orWhereHas('payments', function ($paymentQuery) use ($searchTerm) {
+                    $paymentQuery->where('transaction_number', 'like', "%{$searchTerm}%");
+                });
+            });
+        }
+
+        if ($request->filled('status') && $request->status !== 'all') {
+            $query->where('status', $request->status);
+        }
+
+        $sponsorships = $query->latest()->get();
+
+        $formattedData = $sponsorships->map(function ($sponsorship) {
+            $lastPayment = $sponsorship->payments->first();
+
+            return [
+                'id'                   => $sponsorship->id,
+                'sponsor_name'         => $sponsorship->sponsor ? $sponsorship->sponsor->full_name : null,
+                'sponsor_email'        => $sponsorship->sponsor ? $sponsorship->sponsor->email : null,
+                'animal_name'          => $sponsorship->animal ? $sponsorship->animal->name : null,
+                'amount_with_currency' => $sponsorship->monthly_amount . ' ' . $sponsorship->currency,
+                'payment_method'       => $lastPayment ? $lastPayment->payment_method : null,
+                'transaction_number'   => $lastPayment ? $lastPayment->transaction_number : null,
+                'status'               => $sponsorship->status,
+                'created_at'           => $sponsorship->created_at->toDateTimeString(),
+            ];
+        });
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Sponsorships search results retrieved successfully.',
+            'data'    => $formattedData,
+            'total'   => $formattedData->count(),
         ], 200);
     }
 }
