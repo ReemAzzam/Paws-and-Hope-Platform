@@ -22,34 +22,42 @@ class LostFoundController extends Controller
     }
 
     // ====================== قائمة المنشورات ======================
-    public function index(Request $request)
-    {
-        $query = LostFound::with(['user', 'photos'])
-            ->where('status', 'open')
-            ->latest();
+   public function index(Request $request)
+{
+    $query = LostFound::with(['user', 'photos'])
+        ->where('status', 'open')
+        ->latest();
 
-        if ($request->filled('post_type')) {
-            $query->where('post_type', $request->post_type);
-        }
-        if ($request->filled('animal_type')) {
-            $query->where('animal_type', $request->animal_type);
-        }
-        if ($request->filled('search')) {
-            $search = $request->search;
-            $query->where(function($q) use ($search) {
-                $q->where('name', 'like', "%$search%")
-                  ->orWhere('description', 'like', "%$search%")
-                  ->orWhere('location_description', 'like', "%$search%");
-            });
-        }
-
-        $posts = $query->paginate(12);
-
-        return response()->json([
-            'success' => true,
-            'data'    => $posts
-        ]);
+    if ($request->filled('post_type')) {
+        $query->where('post_type', $request->post_type);
     }
+    if ($request->filled('animal_type')) {
+        $query->where('animal_type', $request->animal_type);
+    }
+    if ($request->filled('search')) {
+        $search = $request->search;
+        $query->where(function($q) use ($search) {
+            $q->where('name', 'like', "%$search%")
+              ->orWhere('description', 'like', "%$search%")
+              ->orWhere('location_description', 'like', "%$search%");
+        });
+    }
+
+    // استخدام through لتنسيق الصور داخل كل عنصر في القائمة
+    $posts = $query->paginate(12)->through(function ($post) {
+        // إضافة مصفوفة images تحتوي على الروابط الكاملة
+        $post->images = $post->photos->map(function ($photo) {
+            return asset('storage/' . ltrim($photo->photo_url, '/'));
+        })->values()->toArray();
+
+        return $post;
+    });
+
+    return response()->json([
+        'success' => true,
+        'data'    => $posts
+    ]);
+}
 
     // ====================== إنشاء منشور ======================
 
@@ -172,9 +180,9 @@ public function store(Request $request)
         'location' => [
             'address'     => $lostFound->location_description,
             'subNotes'    => '',
-            'date'        => optional($lostFound->incident_at)->format('M d, Y') 
+            'date'        => optional($lostFound->incident_at)->format('M d, Y')
                         ?? $lostFound->created_at->format('M d, Y'),
-            'time'        => optional($lostFound->incident_at)->format('g:i A') 
+            'time'        => optional($lostFound->incident_at)->format('g:i A')
                         ?? $lostFound->created_at->format('g:i A'),
             'coordinates' => [$lostFound->latitude, $lostFound->longitude]
         ],
@@ -190,7 +198,7 @@ public function store(Request $request)
         ],
 
       'images' => $lostFound->photos->map(function ($photo) {
-                return asset('storage/' . ltrim($photo->photo_url, '/')); 
+                return asset('storage/' . ltrim($photo->photo_url, '/'));
             })->values()->toArray(),
     ];
 

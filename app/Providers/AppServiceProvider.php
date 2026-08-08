@@ -6,6 +6,7 @@ use Illuminate\Support\ServiceProvider;
 use Illuminate\Support\Facades\Event;
 use App\Events\SendNotificationEvent;
 use App\Listeners\SendPushNotificationListener;
+use Illuminate\Http\JsonResponse;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -26,5 +27,8 @@ class AppServiceProvider extends ServiceProvider
            SendNotificationEvent::class,
            SendPushNotificationListener::class
         );
+        JsonResponse::macro('withUnescaped', function () {
+        return $this->setEncodingOptions(JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    });
     }
 }

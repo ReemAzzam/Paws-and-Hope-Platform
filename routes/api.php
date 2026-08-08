@@ -80,7 +80,6 @@ Route::prefix('v1')->group(function () {
      // Public Lost & Found
     Route::prefix('lost-found')->group(function () {
         Route::get('/', [LostFoundController::class, 'index']);
-        Route::get('/nearby', [LostFoundController::class, 'searchNearby']);
         Route::get('/{lostFound}', [LostFoundController::class, 'show']);
         Route::get('/{lostFound}/similar', [LostFoundController::class, 'similarPosts']);
     });

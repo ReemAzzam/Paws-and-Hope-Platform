@@ -5,17 +5,17 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\File;
 use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Storage;
 use Spatie\Permission\Models\Role;
 
 class UserRoleSeeder extends Seeder
 {
     public function run(): void
     {
-        // تنظيف الكاش الخاص بصلاحيات Spatie
         app()[\Spatie\Permission\PermissionRegistrar::class]->forgetCachedPermissions();
 
-        // تصفير الجداول لمنع تكرار البيانات أو حدوث تضارب في المفاتيح الأجنبية
         DB::statement('SET FOREIGN_KEY_CHECKS=0;');
         DB::table('users')->where('email', '!=', 'admin@animalrescue.com')->delete();
         DB::table('regular_users')->truncate();
@@ -23,20 +23,20 @@ class UserRoleSeeder extends Seeder
         DB::table('veterinarians')->truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        // 1. إنشاء الأدوار داخل الحزمة مع تحديد جارد الـ API لضمان استقرار الـ Sanctum
         $regularUserRole = Role::findOrCreate('regular_user', 'api');
         $superAdminRole  = Role::findOrCreate('SuperAdmin', 'api');
         $volunteerRole   = Role::findOrCreate('volunteer', 'api');
         $vetRole         = Role::findOrCreate('veterinarian', 'api');
 
         // ===================================================================
-        // 2. إنشاء حساب الـ SuperAdmin وتعيين الدور له مباشرة
+        // SuperAdmin
         // ===================================================================
         $admin = User::updateOrCreate(
             ['email' => 'admin@platform.com'],
             [
                 'full_name'          => 'المدير العام للمنصة',
                 'password'           => Hash::make('Admin@1234'),
+                'photo'              => $this->storeUserPhoto('admin.avif', 'admin.avif'),
                 'country_code'       => 'SY',
                 'phone_number'       => '933333333',
                 'governorate'        => 'دمشق',
@@ -50,12 +50,13 @@ class UserRoleSeeder extends Seeder
         $admin->assignRole($superAdminRole);
 
         // ===================================================================
-        // 3. متطوع 1: مبتدئ (Beginner) - قريب جغرافيًا
+        // Volunteer 1
         // ===================================================================
         $volunteerUser1 = User::create([
             'full_name'          => 'Ahmad Beginner Rescuer',
             'email'              => 'volunteer_beginner@platform.com',
             'password'           => Hash::make('Volunteer@1234'),
+            'photo'              => $this->storeUserPhoto('volunteer1.avif', 'volunteer1.avif'),
             'country_code'       => 'SY',
             'phone_number'       => '944444444',
             'governorate'        => 'دمشق',
@@ -84,12 +85,13 @@ class UserRoleSeeder extends Seeder
         ]);
 
         // ===================================================================
-        // 4. متطوع 2: متوسط (Intermediate)
+        // Volunteer 2
         // ===================================================================
         $volunteerUser2 = User::create([
             'full_name'          => 'Mustafa Intermediate Rescuer',
             'email'              => 'volunteer_intermediate@platform.com',
             'password'           => Hash::make('Volunteer@1234'),
+            'photo'              => $this->storeUserPhoto('volunteer2.avif', 'volunteer2.avif'),
             'country_code'       => 'SY',
             'phone_number'       => '988888888',
             'governorate'        => 'دمشق',
@@ -118,12 +120,13 @@ class UserRoleSeeder extends Seeder
         ]);
 
         // ===================================================================
-        // 5. متطوع 3: متقدم محترف (Advanced)
+        // Volunteer 3
         // ===================================================================
         $volunteerUser3 = User::create([
             'full_name'          => 'Khaled Advanced Rescuer',
             'email'              => 'volunteer_advanced@platform.com',
             'password'           => Hash::make('Volunteer@1234'),
+            'photo'              => $this->storeUserPhoto('volunteer3.avif', 'volunteer3.avif'),
             'country_code'       => 'SY',
             'phone_number'       => '977777777',
             'governorate'        => 'دمشق',
@@ -152,12 +155,13 @@ class UserRoleSeeder extends Seeder
         ]);
 
         // ===================================================================
-        // 6. الطبيب البيطري (Veterinarian User)
+        // Veterinarian
         // ===================================================================
         $vetUser = User::create([
             'full_name'          => 'Dr. Hakeem Al-Baitari',
             'email'              => 'vet@platform.com',
             'password'           => Hash::make('Vet@1234'),
+            'photo'              => $this->storeUserPhoto('vet1.avif', 'vet1.avif'),
             'country_code'       => 'SY',
             'phone_number'       => '955555555',
             'governorate'        => 'حلب',
@@ -183,12 +187,13 @@ class UserRoleSeeder extends Seeder
         ]);
 
         // ===================================================================
-        // 7. المستخدم العادي (Regular User)
+        // Regular Users
         // ===================================================================
         $regularUser = User::create([
             'full_name'          => 'Mohamad Case Reporter',
             'email'              => 'user@platform.com',
             'password'           => Hash::make('User@1234'),
+            'photo'              => $this->storeUserPhoto('user1.avif', 'user1.avif'),
             'country_code'       => 'SY',
             'phone_number'       => '966666666',
             'governorate'        => 'حمص',
@@ -206,14 +211,11 @@ class UserRoleSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-    //==============================================
-    // 8.regular users
-    // =============================================
-
         $regularUser = User::create([
             'full_name'          => 'Lenar',
             'email'              => 'Lili@platform.com',
             'password'           => Hash::make('User@1234'),
+            'photo'              => $this->storeUserPhoto('user2.avif', 'user2.avif'),
             'country_code'       => '+49',
             'phone_number'       => '15758083978',
             'governorate'        => 'حمص',
@@ -231,10 +233,11 @@ class UserRoleSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-           $regularUser = User::create([
+        $regularUser = User::create([
             'full_name'          => 'Zain',
             'email'              => 'Zain@platform.com',
             'password'           => Hash::make('User@1234'),
+            'photo'              => $this->storeUserPhoto('user3.avif', 'user3.avif'),
             'country_code'       => 'DE',
             'phone_number'       => '15754083978',
             'governorate'        => 'دمشق',
@@ -252,10 +255,11 @@ class UserRoleSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-         $regularUser = User::create([
+        $regularUser = User::create([
             'full_name'          => 'Louna',
             'email'              => 'Lounaaa@platform.com',
             'password'           => Hash::make('User@1234'),
+            'photo'              => $this->storeUserPhoto('user4.avif', 'user4.avif'),
             'country_code'       => 'AE',
             'phone_number'       => '5677803978',
             'governorate'        => 'الامارات',
@@ -273,6 +277,29 @@ class UserRoleSeeder extends Seeder
             'updated_at' => now(),
         ]);
 
-      $this->command->info('✅ Application roles and integrated data seeded successfully!');
+        $this->command->info('✅ Application roles and integrated data seeded successfully!');
+    }
+
+    /**
+     * تخزين صورة المستخدم بنفس أسلوب Lost & Found
+     * يرجع مسار نسبي مثل: users/admin.avif
+     */
+    private function storeUserPhoto(string $sourceFileName, string $targetFileName): ?string
+    {
+        $sourcePath = database_path('seeders/assets/users/' . $sourceFileName);
+
+        if (!File::exists($sourcePath)) {
+            $this->command?->warn("Photo not found: {$sourceFileName}");
+            return null;
+        }
+
+        $targetPath = 'users/' . $targetFileName;
+
+        Storage::disk('public')->put(
+            $targetPath,
+            File::get($sourcePath)
+        );
+
+        return $targetPath;
     }
 }
