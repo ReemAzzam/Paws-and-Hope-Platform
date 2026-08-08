@@ -30,7 +30,7 @@ class GoogleAuthController extends Controller
             $needsRoleSelection = false;
 
             if (!$user) {
-                // مستخدم جديد → بدون رول
+                // مستخدم جديد → بدون رول + إيميل موثّق بدون OTP
                 $user = DB::transaction(function () use ($googleUser) {
                     return User::create([
                         'full_name'          => $googleUser->getName(),
@@ -50,21 +50,30 @@ class GoogleAuthController extends Controller
                     $user->update(['google_id' => $googleUser->getId()]);
                 }
 
+                // تأكيد أن الإيميل موثّق لمستخدمي Google
+                if (is_null($user->email_verified_at)) {
+                    $user->update(['email_verified_at' => now()]);
+                }
+
                 // إذا ما عنده أي رول → لازم يختار
                 $needsRoleSelection = $user->roles()->count() === 0;
             }
 
             $token = $user->createToken('google_token')->plainTextToken;
-            $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+            $frontendUrl = rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/');
 
             if ($needsRoleSelection) {
-                return redirect()->away($frontendUrl . '/auth/select-role?token=' . $token);
+                return redirect()->away(
+                    $frontendUrl . '/auth/select-role?token=' . urlencode($token) . '&requires_otp=0&email_verified=1'
+                );
             }
 
-            return redirect()->away($frontendUrl . '/auth/success?token=' . $token);
+            return redirect()->away(
+                $frontendUrl . '/auth/success?token=' . urlencode($token) . '&requires_otp=0&email_verified=1'
+            );
 
         } catch (\Exception $e) {
-            $frontendUrl = env('FRONTEND_URL', 'http://localhost:3000');
+            $frontendUrl = rtrim(env('FRONTEND_URL', 'http://localhost:3000'), '/');
             return redirect()->away(
                 $frontendUrl . '/auth/error?message=' . urlencode('فشل تسجيل الدخول عبر Google')
             );
@@ -111,7 +120,10 @@ class GoogleAuthController extends Controller
                     'updated_at' => now(),
                 ]);
 
-                $user->update(['account_status' => 'active']);
+                $user->update([
+                    'account_status'    => 'active',
+                    'email_verified_at' => $user->email_verified_at ?? now(),
+                ]);
             }
 
             if ($role === 'volunteer') {
@@ -120,26 +132,82 @@ class GoogleAuthController extends Controller
                     'created_at' => now(),
                     'updated_at' => now(),
                 ]);
-                // يبقى pending إلى أن يكمل الملف + موافقة الأدمن
+                // يبقى pending إلى إكمال الملف + موافقة الأدمن
             }
 
             if ($role === 'veterinarian') {
-                // ما مننشئ سجل veterinarians هون
-                // بيتكمّل عبر completeVetProfile
+                // يتكمل عبر completeVetProfile
             }
         });
+
+        $user->refresh();
 
         return response()->json([
             'success' => true,
             'message' => 'Role selected successfully',
             'data'    => [
-                'role' => $role,
-                'next' => match ($role) {
+                'role'           => $role,
+                'next'           => match ($role) {
                     'regular_user' => 'home',
                     'veterinarian' => 'complete_vet_profile',
                     'volunteer'    => 'complete_volunteer_profile',
                 },
+                'requires_otp'   => false,
+                'email_verified' => !is_null($user->email_verified_at),
+                'account_status' => $user->account_status,
             ]
         ]);
+    }
+
+    /**
+     * حالة المستخدم الحالية - مفيدة للفرونت لتقرير الخطوة التالية
+     * GET /api/v1/auth/me
+     */
+    public function me(Request $request)
+    {
+        $user = $request->user()->load(['roles', 'veterinarian', 'volunteer']);
+
+        return response()->json([
+            'success' => true,
+            'data'    => [
+                'id'             => $user->id,
+                'full_name'      => $user->full_name,
+                'email'          => $user->email,
+                'roles'          => $user->getRoleNames(),
+                'account_status' => $user->account_status,
+                'email_verified' => !is_null($user->email_verified_at),
+                'requires_otp'   => is_null($user->email_verified_at),
+                'next'           => $this->resolveNextStep($user),
+            ]
+        ]);
+    }
+
+    private function resolveNextStep(User $user): string
+    {
+        // 1) إذا الإيميل غير موثّق → OTP (مسار التسجيل العادي فقط)
+        if (is_null($user->email_verified_at)) {
+            return 'verify_otp';
+        }
+
+        // 2) إذا ما في رول → اختيار رول
+        if ($user->roles()->count() === 0) {
+            return 'select_role';
+        }
+
+        // 3) بيطري بدون ملف مكتمل
+        if ($user->hasRole('veterinarian') && !$user->veterinarian) {
+            return 'complete_vet_profile';
+        }
+
+        // 4) متطوع بدون بيانات أساسية
+        if ($user->hasRole('volunteer')) {
+            $volunteer = $user->volunteer;
+            if (!$volunteer || is_null($volunteer->vol_type)) {
+                return 'complete_volunteer_profile';
+            }
+        }
+
+        // 5) جاهز
+        return 'home';
     }
 }

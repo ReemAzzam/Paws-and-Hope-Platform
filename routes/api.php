@@ -125,6 +125,7 @@ Route::prefix('v1')->group(function () {
 
         // after google signup
         Route::post('/auth/select-role', [GoogleAuthController::class, 'selectRole']);
+        Route::get('/auth/me', [GoogleAuthController::class, 'me']);
 
         // Profile
         Route::prefix('profile')->group(function(){
@@ -218,6 +219,7 @@ Route::prefix('v1')->group(function () {
             Route::put('/{id}/reject', [AdoptionApplicationController::class, 'reject']);
             Route::put('/applications/{id}/change-status',[AdoptionApplicationController::class, 'changeStatus']);
             Route::get('/applications/{id}',[AdoptionApplicationController::class, 'show']);
+
         });
 
 

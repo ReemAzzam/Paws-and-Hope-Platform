@@ -22,7 +22,7 @@ class DatabaseSeeder extends Seeder
             QuizQuestionsSeeder::class, // 5. تجهيز بنك أسئلة الكويز
             PostCategorySeeder::class,  // 6. تحميل تصنيفات منشوارات المجتمع
             LostFoundSeeder::class,      // 7. رفع منشورات Lost & Found التجريبية
-
+            AdoptionApplicationSeeder::class, // 8. رفع طلبات التبني التجريبية
         ]);
 
         /*User::factory()->create([
