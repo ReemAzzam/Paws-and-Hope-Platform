@@ -114,6 +114,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/summary', [TransparencyDashboardController::class, 'getFinancialSummary']);
         Route::get('/expenses', [TransparencyDashboardController::class, 'getPublicExpenses']);
         Route::get('/donations', [TransparencyDashboardController::class, 'getMyDonations']);
+        //Get the donations report for user dashboard
         Route::get('/report_data',[TransparencyDashboardController::class, 'getFinancialReportData']);
     });
 

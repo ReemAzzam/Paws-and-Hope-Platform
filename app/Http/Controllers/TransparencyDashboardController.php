@@ -81,6 +81,13 @@ class TransparencyDashboardController extends Controller
                             ? ($donation->user ? $donation->user->full_name . ' (Anonymous Donor)' : 'Anonymous Donor')
                             : ($donation->user ? $donation->user->full_name : 'Generous Donor'),
                         'created_at'         => $donation->created_at->format('Y-m-d H:i'),
+                        'receipt_image_path' => $donation->receipt_image_path
+                            ? (
+                                filter_var($donation->receipt_image_path, FILTER_VALIDATE_URL)
+                                    ? $donation->receipt_image_path
+                                    : asset('storage/' . ltrim($donation->receipt_image_path, '/'))
+                            )
+                            : null,
                     ];
                 });
 

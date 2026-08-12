@@ -23,6 +23,9 @@ class DatabaseSeeder extends Seeder
             PostCategorySeeder::class,  // 6. تحميل تصنيفات منشوارات المجتمع
             LostFoundSeeder::class,      // 7. رفع منشورات Lost & Found التجريبية
             AdoptionApplicationSeeder::class, // 8. رفع طلبات التبني التجريبية
+            DonationSeeder::class, // 9. رفع التبرعات التجريبية
+            SponsorshipSeeder::class, // 10. رفع بيانات الكفالات التجريبية
+            SponsorshipPaymentSeeder::class, // 11. رفع بيانات دفعات الكفالات
         ]);
 
         /*User::factory()->create([

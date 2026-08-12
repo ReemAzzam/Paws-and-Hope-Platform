@@ -21,21 +21,21 @@ class SponsorshipController extends Controller
     public function requestSponsorship(Request $request)
     {
         $allowedPaymentMethods = [
-            'al_haram', 
-            'al_fouad', 
-            'syriatel_cash', 
-            'mtn_cash', 
-            'western_union', 
-            'paypal', 
-            'gofundme', 
-            'hand_delivery', 
+            'al_haram',
+            'al_fouad',
+            'syriatel_cash',
+            'mtn_cash',
+            'western_union',
+            'paypal',
+            'gofundme',
+            'hand_delivery',
             'external'
         ];
 
         $validator = Validator::make($request->all(), [
             'animal_id'          => 'required|exists:animals,id',
             'monthly_amount'     => 'required|numeric|min:0',
-            'currency'           => 'required|in:SYP,USD', 
+            'currency'           => 'required|in:SYP,USD',
             'payment_method'     => ['required', 'string', Rule::in($allowedPaymentMethods)],
             'transaction_number' => 'required|string|unique:sponsorship_payments,transaction_number|digits:12',
             'receipt_image'      => 'required|image|mimes:jpeg,png,jpg|max:4096',
@@ -57,7 +57,7 @@ class SponsorshipController extends Controller
                 'user_id'        => Auth::id(),
                 'animal_id'      => $request->animal_id,
                 'monthly_amount' => $request->monthly_amount,
-                'currency'       => $request->currency, 
+                'currency'       => $request->currency,
                 'status'         => 'pending',
                 'notes'          => $request->notes,
             ]);
@@ -68,7 +68,7 @@ class SponsorshipController extends Controller
             SponsorshipPayment::create([
                 'sponsorship_id'      => $sponsorship->id,
                 'amount'              => $request->monthly_amount,
-                'currency'            => $request->currency, 
+                'currency'            => $request->currency,
                 'payment_method'      => $request->payment_method,
                 'transaction_number'  => $request->transaction_number,
                 'receipt_image_url'   => $receiptUrl,
@@ -173,23 +173,23 @@ class SponsorshipController extends Controller
         }
 
         $allowedPaymentMethods = [
-            'al_haram', 
-            'al_fouad', 
-            'syriatel_cash', 
-            'mtn_cash', 
-            'western_union', 
-            'paypal', 
-            'gofundme', 
-            'hand_delivery', 
+            'al_haram',
+            'al_fouad',
+            'syriatel_cash',
+            'mtn_cash',
+            'western_union',
+            'paypal',
+            'gofundme',
+            'hand_delivery',
             'external'
         ];
 
         $validator = Validator::make($request->all(), [
             'amount'             => 'required|numeric|min:0',
-            'currency'           => 'required|in:SYP,USD', 
+            'currency'           => 'required|in:SYP,USD',
             'payment_method'     => ['required', 'string', Rule::in($allowedPaymentMethods)], // 🟢 التحقق من الطرق المحددة
             'transaction_number' => 'required|string|unique:sponsorship_payments,transaction_number',
-            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg|max:4096',
+            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg,avif|max:4096',
         ]);
 
         if ($validator->fails()) {
@@ -203,7 +203,7 @@ class SponsorshipController extends Controller
             $payment = SponsorshipPayment::create([
                 'sponsorship_id'      => $sponsorship->id,
                 'amount'              => $request->amount,
-                'currency'            => $request->currency, 
+                'currency'            => $request->currency,
                 'payment_method'      => $request->payment_method,
                 'transaction_number'  => $request->transaction_number,
                 'receipt_image_url'   => $receiptUrl,
@@ -237,20 +237,76 @@ class SponsorshipController extends Controller
         }
     }
 
-    public function mySponsorships()
+    // public function mySponsorships()
+    // {
+    //     $sponsorships = Sponsorship::where('user_id', Auth::id())
+    //         ->where('status', 'active')
+    //         ->with([
+    //             'animal.photos',
+    //             'animal.updates' => function($query) {
+    //                 $query->latest();
+    //             },
+    //             'payments' => function($query) {
+    //                 $query->latest();
+    //             }
+    //         ])
+    //         ->get();
+
+    //     return response()->json([
+    //         'success'      => true,
+    //         'message'      => 'Sponsorship dashboard data retrieved successfully.',
+    //         'sponsorships' => $sponsorships
+    //     ], 200);
+    // }
+        public function mySponsorships()
     {
         $sponsorships = Sponsorship::where('user_id', Auth::id())
             ->where('status', 'active')
             ->with([
                 'animal.photos',
-                'animal.updates' => function($query) {
+                'animal.updates' => function ($query) {
                     $query->latest();
                 },
-                'payments' => function($query) {
+                'payments' => function ($query) {
                     $query->latest();
                 }
             ])
             ->get();
+
+        $sponsorships->each(function ($sponsorship) {
+
+            if ($sponsorship->animal && $sponsorship->animal->photos) {
+
+                $sponsorship->animal->photos->each(function ($photo) {
+
+                    if ($photo->photo_url) {
+                        $photo->photo_url = asset('storage/' . ltrim($photo->photo_url, '/'));
+                    }
+
+                });
+
+            }
+
+            // إذا كنت تريد أيضاً تحويل صور إيصالات الدفع إلى URL كامل
+            if ($sponsorship->payments) {
+
+                $sponsorship->payments->each(function ($payment) {
+
+                    if ($payment->receipt_image_url) {
+
+                        // إذا كانت القيمة أصلاً URL كامل لا نضيف storage مرة ثانية
+                        if (!filter_var($payment->receipt_image_url, FILTER_VALIDATE_URL)) {
+                            $payment->receipt_image_url = asset(
+                                'storage/' . ltrim($payment->receipt_image_url, '/')
+                            );
+                        }
+
+                    }
+
+                });
+
+            }
+        });
 
         return response()->json([
             'success'      => true,
@@ -345,7 +401,7 @@ class SponsorshipController extends Controller
         ]);
 
         $query = Sponsorship::with([
-            'sponsor:id,full_name,email', 
+            'sponsor:id,full_name,email',
             'animal:id,name',
             'payments' => function ($q) {
                 $q->latest();

@@ -112,9 +112,26 @@ class AdoptionApplicationController extends Controller
     public function myApplications(Request $request)
     {
         $applications = AdoptionApplication::where('user_id', $request->user()->id)
-            ->with(['animal:id,name,type,health_status'])
+            ->with([
+                'animal:id,name,type,health_status',
+                'animal.photos'
+            ])
             ->latest()
             ->get();
+
+        $applications->each(function ($application) {
+            if ($application->animal) {
+                $mainPhoto = $application->animal->photos
+                    ->where('is_main', true)
+                    ->first();
+
+                $application->animal->photo = $mainPhoto
+                    ? asset($mainPhoto->photo_url)
+                    : null;
+
+                unset($application->animal->photos);
+            }
+        });
 
         return response()->json([
             'success' => true,

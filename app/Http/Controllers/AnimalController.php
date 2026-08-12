@@ -141,15 +141,22 @@ class AnimalController extends Controller
     /**
      * Display the specified animal details.
      */
-    public function show(Animal $animal)
+    public function show($id)
     {
-        $animal->load(['photos', 'vet' , 'medicalConditions', 'behavioralAttributes', 'vaccinations']);
+        $animal = Animal::findOrFail($id);
 
         return response()->json([
             'success' => true,
-            'data'    => $animal
+            'attributes' => $animal->getAttributes(),
+            'data' => $animal->load([
+                'photos',
+                'vet',
+                'medicalConditions',
+                'behavioralAttributes',
+                'vaccinations'
+            ])
         ]);
-    }
+   }
 
     /**
      * Update the specified animal profile in storage.

@@ -21,7 +21,7 @@ class DonationController extends Controller
             'currency'           => 'required|in:SYP,USD',
             'gateway_type'       => 'required|in:al_haram,al_fouad,syriatel_cash,mtn_cash,western_union,paypal,gofundme,hand_delivery,external',
             'transaction_number' => 'nullable|string|max:100',
-            'receipt_image'      => 'nullable|image|mimes:jpeg,png,jpg|max:10240',
+            'receipt_image'      => 'nullable|image|mimes:jpeg,png,jpg,avif|max:10240',
             'is_anonymous'       => 'nullable|boolean',
         ]);
 
@@ -45,10 +45,12 @@ class DonationController extends Controller
 
         try {
             $receiptUrl = null;
+
             if ($request->hasFile('receipt_image')) {
-                $path = $request->file('receipt_image')->store('donation_receipts', 'public');
-                $receiptUrl = Storage::url($path);
-            }
+                    $path = $request->file('receipt_image')->store('donation_receipts', 'public');
+
+                    $receiptUrl = asset('storage/' . $path);
+                }
 
             $userId = Auth::check() ? Auth::id() : null;
 
@@ -189,7 +191,7 @@ class DonationController extends Controller
                 });
             });
         }
-        
+
         if (!empty($statusInput) && $statusInput !== 'all') {
             $query->where('status', $statusInput);
         }
@@ -199,17 +201,23 @@ class DonationController extends Controller
         $formattedData = $donations->map(function ($donation) {
             return [
                 'id'                 => $donation->id,
-                'donor_name'         => $donation->is_anonymous 
-                                        ? 'Anonymous Donor' 
+                'donor_name'         => $donation->is_anonymous
+                                        ? 'Anonymous Donor'
                                         : ($donation->user?->full_name ?? 'Guest Donor'),
-                'email'              => $donation->is_anonymous 
-                                        ? null 
+                'email'              => $donation->is_anonymous
+                                        ? null
                                         : ($donation->user?->email ?? null),
                 'gateway_type'       => $donation->gateway_type,
                 'transaction_number' => $donation->transaction_number ?? 'N/A',
                 'amount'             => "{$donation->amount} {$donation->currency}",
                 'status'             => $donation->status,
-                'receipt_image_path' => $donation->receipt_image_path,
+                'receipt_image_path' => $donation->receipt_image_path
+                ? (
+                    filter_var($donation->receipt_image_path, FILTER_VALIDATE_URL)
+                        ? $donation->receipt_image_path
+                        : asset('storage/' . ltrim($donation->receipt_image_path, '/'))
+                )
+                : null,
                 'created_at'         => $donation->created_at->toDateTimeString(),
             ];
         });
