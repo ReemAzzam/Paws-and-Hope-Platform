@@ -48,12 +48,20 @@ class LoginController extends Controller
         // إنشاء توكن
         $token = $user->createToken('auth_token')->plainTextToken;
 
-        return response()->json([
+       return response()->json([
             'success' => true,
             'message' => 'Login successful.',
-            'user'    => $user->only(['id', 'full_name', 'email', 'country_code', 'phone_number', 'governorate']),
-            'roles'   => $user->getRoleNames(),
-            'token'   => $token,
+            'user'    => [
+                'id'           => $user->id,
+                'full_name'    => $user->full_name,
+                'email'        => $user->email,
+                'country_code' => $user->country_code,
+                'phone_number' => $user->phone_number,
+                'governorate'  => $user->governorate,
+                'photo_url'    => $user->photo_url,
+            ],
+            'roles' => $user->getRoleNames(),
+            'token' => $token,
         ]);
     }
 

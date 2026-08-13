@@ -58,13 +58,13 @@ class DonationController extends Controller
                 'currency'           => $request->currency,
                 'gateway_type'       => $request->gateway_type,
                 'transaction_number' => $request->transaction_number,
-                'receipt_image_path' => $receiptUrl,
+                'receipt_image_path' => $receiptPath,
                 'status'             => 'pending',
                 'is_anonymous'       => $request->has('is_anonymous') ? (bool)$request->is_anonymous : false,
             ]);
-
-            // إشعار الأدمن بالتبرع الجديد مع إضافة العملة
-           // $admins = User::role(['admin', 'SuperAdmin'])->get();
+            $admins = User::whereHas('roles', function ($query) {
+                $query->whereIn('name', ['admin', 'SuperAdmin']);
+            })->get();
 
             foreach ($admins as $admin) {
                 $notification = NotificationTemplates::newDonation(
@@ -209,13 +209,7 @@ class DonationController extends Controller
                 'transaction_number' => $donation->transaction_number ?? 'N/A',
                 'amount'             => "{$donation->amount} {$donation->currency}",
                 'status'             => $donation->status,
-                'receipt_image_path' => $donation->receipt_image_path,
-                // ? (
-                //     filter_var($donation->receipt_image_path, FILTER_VALIDATE_URL)
-                //         ? $donation->receipt_image_path
-                //         : asset('storage/' . ltrim($donation->receipt_image_path, '/'))
-                // )
-                // : null,
+                'receipt_image_url'  => $donation->receipt_image_url,
                 'created_at'         => $donation->created_at->toDateTimeString(),
             ];
         });
