@@ -117,6 +117,9 @@ Route::prefix('v1')->group(function () {
         //Get the donations report for user dashboard
         Route::get('/report_data',[TransparencyDashboardController::class, 'getFinancialReportData']);
     });
+     
+     // ============== Public Consultations ==============
+    Route::get('/public-consultations', [GeneralConsultationController::class, 'getAllPublicConsultations']);
 
     // ====================== Auth Protected ======================
     Route::middleware('auth:sanctum')->group(function () {
@@ -314,6 +317,8 @@ Route::prefix('v1')->group(function () {
                 Route::post('/', [GeneralConsultationController::class, 'store']);
             Route::put('/{id}/update-question', [GeneralConsultationController::class, 'updateQuestion']);
             Route::delete('/{id}/delete-question', [GeneralConsultationController::class, 'destroyQuestion']);
+            Route::get('/my-questions', [GeneralConsultationController::class, 'getUserQuestions']);
+            Route::get('/my-questions/{id}/answer', [GeneralConsultationController::class, 'getQuestionAnswer']);
 
             // ======== Veterinarian  ========
 

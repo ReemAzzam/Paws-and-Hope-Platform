@@ -205,4 +205,79 @@ class GeneralConsultationController extends Controller
             'data'    => $consultation
         ], 200);
     }
+
+    public function getUserQuestions(Request $request)
+    {
+        $userId = $request->user()->id;
+
+        $questions = GeneralConsultation::select('id', 'user_id', 'question', 'status', 'created_at')
+            ->where('user_id', $userId)
+            ->latest()
+            ->paginate(10);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'User questions fetched successfully.',
+            'data'    => $questions
+        ], 200);
+    }
+
+    public function getQuestionAnswer(Request $request, $id)
+    {
+        $userId = $request->user()->id;
+
+        $consultation = GeneralConsultation::with('veterinarian.user:id,full_name')
+            ->where('id', $id)
+            ->where('user_id', $userId) // التأكد من الصلاحية والملكية
+            ->first();
+        if (!$consultation) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Consultation not found or access denied.'
+            ], 404);
+        }
+
+        if ($consultation->status !== 'answered' || is_null($consultation->answer)) {
+            return response()->json([
+                'success' => true,
+                'message' => 'This question has not been answered yet.',
+                'data'    => [
+                    'id'       => $consultation->id,
+                    'question' => $consultation->question,
+                    'status'   => $consultation->status,
+                    'answer'   => null
+                ]
+            ], 200);
+        }
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Answer retrieved successfully.',
+            'data'    => [
+                'id'           => $consultation->id,
+                'question'     => $consultation->question,
+                'answer'       => $consultation->answer,
+                'status'       => $consultation->status,
+                'answered_at'  => $consultation->updated_at,
+                'doctor_name'  => $consultation->veterinarian?->user?->full_name ?? 'Approved Veterinarian'
+            ]
+        ], 200);
+    }
+
+    public function getAllPublicConsultations(Request $request)
+    {
+        $consultations = GeneralConsultation::with([
+                'user:id,full_name',                 // اسم السائل
+                'veterinarian.user:id,full_name'      // اسم الطبيب إذا أجاب
+            ])
+            ->select('id', 'user_id', 'veterinarian_id', 'question', 'answer', 'status', 'created_at', 'updated_at')
+            ->latest()
+            ->paginate(15); // دعم الترقيم 15 استشارة بالصفحة
+
+        return response()->json([
+            'success' => true,
+            'message' => 'All public consultations retrieved successfully.',
+            'data'    => $consultations
+        ], 200);
+    }
 }
