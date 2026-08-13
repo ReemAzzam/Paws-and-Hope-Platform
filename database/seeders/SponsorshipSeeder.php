@@ -11,7 +11,7 @@ class SponsorshipSeeder extends Seeder
     {
         Sponsorship::insert([
             [
-                'user_id' => 1,
+                'user_id' => 7,
                 'animal_id' => 1,
                 'monthly_amount' => 25,
                 'currency' => 'USD',
@@ -23,7 +23,7 @@ class SponsorshipSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'user_id' => 2,
+                'user_id' => 8,
                 'animal_id' => 2,
                 'monthly_amount' => 150000,
                 'currency' => 'SYP',
@@ -35,7 +35,7 @@ class SponsorshipSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'user_id' => 3,
+                'user_id' => 9,
                 'animal_id' => 3,
                 'monthly_amount' => 30,
                 'currency' => 'USD',
@@ -47,7 +47,7 @@ class SponsorshipSeeder extends Seeder
                 'updated_at' => now()->subDays(4),
             ],
             [
-                'user_id' => 4,
+                'user_id' => 9,
                 'animal_id' => 4,
                 'monthly_amount' => 200000,
                 'currency' => 'SYP',
@@ -59,7 +59,7 @@ class SponsorshipSeeder extends Seeder
                 'updated_at' => now()->subDays(10),
             ],
             [
-                'user_id' => 5,
+                'user_id' => 8,
                 'animal_id' => 5,
                 'monthly_amount' => 40,
                 'currency' => 'USD',

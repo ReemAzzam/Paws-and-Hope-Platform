@@ -11,7 +11,7 @@ class DonationSeeder extends Seeder
     {
         Donation::insert([
             [
-                'user_id' => 1,
+                'user_id' => 7,
                 'amount' => 500000,
                 'currency' => 'SYP',
                 'gateway_type' => 'syriatel_cash',
@@ -24,7 +24,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(9),
             ],
             [
-                'user_id' => 2,
+                'user_id' => 8,
                 'amount' => 250000,
                 'currency' => 'SYP',
                 'gateway_type' => 'mtn_cash',
@@ -37,7 +37,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(3),
             ],
             [
-                'user_id' => 3,
+                'user_id' => 9,
                 'amount' => 100,
                 'currency' => 'USD',
                 'gateway_type' => 'paypal',
@@ -50,7 +50,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(6),
             ],
             [
-                'user_id' => 4,
+                'user_id' => 6,
                 'amount' => 50,
                 'currency' => 'USD',
                 'gateway_type' => 'western_union',
@@ -63,7 +63,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(2),
             ],
             [
-                'user_id' => 5,
+                'user_id' => 9,
                 'amount' => 100000,
                 'currency' => 'SYP',
                 'gateway_type' => 'al_haram',
@@ -76,7 +76,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(4),
             ],
             [
-                'user_id' => 1,
+                'user_id' => 7,
                 'amount' => 75000,
                 'currency' => 'SYP',
                 'gateway_type' => 'hand_delivery',
@@ -89,7 +89,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(14),
             ],
             [
-                'user_id' => null,
+                'user_id' => 9,
                 'amount' => 200,
                 'currency' => 'USD',
                 'gateway_type' => 'external',

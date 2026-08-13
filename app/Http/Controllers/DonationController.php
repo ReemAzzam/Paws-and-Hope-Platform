@@ -44,14 +44,12 @@ class DonationController extends Controller
         }
 
         try {
-            $receiptUrl = null;
+            $receiptPath = null;
 
             if ($request->hasFile('receipt_image')) {
-                    $path = $request->file('receipt_image')->store('donation_receipts', 'public');
-
-                    $receiptUrl = asset('storage/' . $path);
-                }
-
+                $receiptPath = $request->file('receipt_image')
+                    ->store('donation_receipts', 'public');
+            }
             $userId = Auth::check() ? Auth::id() : null;
 
             $donation = Donation::create([
@@ -211,13 +209,13 @@ class DonationController extends Controller
                 'transaction_number' => $donation->transaction_number ?? 'N/A',
                 'amount'             => "{$donation->amount} {$donation->currency}",
                 'status'             => $donation->status,
-                'receipt_image_path' => $donation->receipt_image_path
-                ? (
-                    filter_var($donation->receipt_image_path, FILTER_VALIDATE_URL)
-                        ? $donation->receipt_image_path
-                        : asset('storage/' . ltrim($donation->receipt_image_path, '/'))
-                )
-                : null,
+                'receipt_image_path' => $donation->receipt_image_path,
+                // ? (
+                //     filter_var($donation->receipt_image_path, FILTER_VALIDATE_URL)
+                //         ? $donation->receipt_image_path
+                //         : asset('storage/' . ltrim($donation->receipt_image_path, '/'))
+                // )
+                // : null,
                 'created_at'         => $donation->created_at->toDateTimeString(),
             ];
         });
