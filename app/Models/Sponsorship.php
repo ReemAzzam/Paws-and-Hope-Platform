@@ -36,5 +36,5 @@ class Sponsorship extends Model
     {
         return $this->hasMany(SponsorshipPayment::class);
     }
-    
+
 }

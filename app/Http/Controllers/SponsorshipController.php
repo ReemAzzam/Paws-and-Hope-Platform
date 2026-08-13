@@ -62,8 +62,7 @@ class SponsorshipController extends Controller
                 'notes'          => $request->notes,
             ]);
 
-            $imagePath = $request->file('receipt_image')->store('receipts', 'public');
-
+            $receiptPath = $request->file('receipt_image')->store('receipts', 'public');
 
             SponsorshipPayment::create([
                 'sponsorship_id'      => $sponsorship->id,
@@ -74,7 +73,6 @@ class SponsorshipController extends Controller
                 'receipt_image_url'   => $receiptPath,
                 'verification_status' => 'pending',
             ]);
-
             $admins = User::role(['admin', 'SuperAdmin'])->get();
 
             foreach ($admins as $admin) {
