@@ -120,15 +120,14 @@ class CommunityPostController extends Controller
 
         try {
             $imagePath = $request->file('image')->store('community_posts', 'public');
-            $imageUrl = asset('storage/' . $imagePath);
 
             $post = CommunityPost::create([
-                'user_id'     => Auth::id(), 
+                'user_id'     => Auth::id(),
                 'animal_id'   => $request->animal_id,
                 'category_id' => $request->category_id,
                 'title'       => $request->title,
                 'content'     => $request->content,
-                'image_path'  => $imageUrl,
+                'image_path'  => $imagePath,
             ]);
 
             return response()->json([
@@ -156,13 +155,17 @@ class CommunityPostController extends Controller
         $post->fill($request->only(['title', 'content', 'category_id', 'animal_id']));
 
         if ($request->hasFile('image')) {
-            if ($post->image_path) {
-                Storage::disk('public')->delete(str_replace('/storage/', '', $post->image_path));
-            }
 
-            $path = $request->file('image')->store('community_posts', 'public');
-            $post->image_path = '/storage/' . $path;
+        if ($post->image_path) {
+            Storage::disk('public')->delete(
+                $this->getImageStoragePath($post->image_path)
+            );
         }
+
+        $path = $request->file('image')->store('community_posts', 'public');
+
+        $post->image_path = $path;
+    }
 
         $post->save();
 
@@ -177,11 +180,11 @@ class CommunityPostController extends Controller
     {
         $post = CommunityPost::findOrFail($id);
 
-        if ($post->image_path) {
-            Storage::disk('public')->delete(str_replace('/storage/', '', $post->image_path));
-        }
-
-        DB::table('post_likes')->where('post_id', $id)->delete();
+        if ($post->image_path) {   Storage::disk('public')->delete(
+           $this->getImageStoragePath($post->image_path)
+           );
+           }
+            DB::table('post_likes')->where('post_id', $id)->delete();
 
         $post->delete();
 
@@ -191,10 +194,30 @@ class CommunityPostController extends Controller
         ], 200);
     }
 
+
+
     public function categories()
     {
         $categories = PostCategory::all();
         return response()->json(['success' => true, 'categories' => $categories], 200);
+    }
+
+    private function getImageStoragePath($imagePath)
+    {
+        if (!$imagePath) {
+            return null;
+        }
+
+        if (filter_var($imagePath, FILTER_VALIDATE_URL)) {
+            $path = parse_url($imagePath, PHP_URL_PATH);
+        } else {
+            $path = $imagePath;
+        }
+
+        $path = ltrim($path, '/');
+        $path = preg_replace('#^storage/#', '', $path);
+
+        return $path;
     }
 
 }

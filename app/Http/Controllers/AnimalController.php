@@ -78,6 +78,9 @@ class AnimalController extends Controller
 
         // تنفيذ الاستعلام مع الترقيم بـ 12 عنصر في الصفحة
         $animals = $query->latest()->paginate(12);
+        $animals->getCollection()->each(function ($animal) {
+       // $this->formatAnimalPhotos($animal);
+        });
 
         return response()->json([
             'success' => true,
@@ -124,18 +127,22 @@ class AnimalController extends Controller
 
                 AnimalPhoto::create([
                     'animal_id'    => $animal->id,
-                    'photo_url'    => Storage::url($path),
+                    // 'photo_url'    => Storage::url($path),
+                    'photo_url' => $path,
                     'is_main'      => $index === 0,
                     'order_number' => $index,
                 ]);
             }
         }
+            $animal->load('photos');
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Animal profile successfully added to records.',
-            'data'    => $animal->load('photos')
-        ], 201);
+          //  $this->formatAnimalPhotos($animal);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Animal profile successfully added to records.',
+                'data'    => $animal
+            ], 201);
     }
 
     /**
@@ -145,16 +152,20 @@ class AnimalController extends Controller
     {
         $animal = Animal::findOrFail($id);
 
+        $animal->load([
+            'photos',
+            'vet',
+            'medicalConditions',
+            'behavioralAttributes',
+            'vaccinations'
+            ]);
+
+       // $this->formatAnimalPhotos($animal);
+
         return response()->json([
             'success' => true,
             'attributes' => $animal->getAttributes(),
-            'data' => $animal->load([
-                'photos',
-                'vet',
-                'medicalConditions',
-                'behavioralAttributes',
-                'vaccinations'
-            ])
+            'data' => $animal
         ]);
    }
 
@@ -232,7 +243,8 @@ class AnimalController extends Controller
 
                     AnimalPhoto::create([
                         'animal_id'    => $animal->id,
-                        'photo_url'    => Storage::url($path),
+                        // 'photo_url'    => Storage::url($path),
+                        'photo_url' => $path,
                         'is_main'      => false,
                         'order_number' => $animal->photos()->count() + $index,
                     ]);
@@ -268,10 +280,14 @@ class AnimalController extends Controller
 
             DB::commit();
 
+            $animal->load('photos');
+
+         //   $this->formatAnimalPhotos($animal);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Animal details updated successfully. Health report posted to sponsor timeline.',
-                'data'    => $animal->load('photos')
+                'data'    => $animal
             ], 200);
 
         } catch (\Exception $e) {
@@ -317,4 +333,28 @@ class AnimalController extends Controller
             'message' => 'Media asset dropped successfully.'
         ]);
     }
+
+    private function formatAnimalPhotos($animal)
+{
+    if ($animal->relationLoaded('photos')) {
+        $animal->photos->each(function ($photo) {
+
+            if ($photo->photo_url) {
+
+                // إذا كانت الصورة مخزنة كـ:
+                // /storage/animals/1/photo.jpg
+                $path = ltrim($photo->photo_url, '/');
+
+                // إذا كانت أصلًا URL كامل
+                if (filter_var($path, FILTER_VALIDATE_URL)) {
+                    $photo->photo_url = $path;
+                } else {
+                    $photo->photo_url = asset($path);
+                }
+            }
+        });
+    }
+
+    return $animal;
+}
 }

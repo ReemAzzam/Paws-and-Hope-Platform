@@ -132,6 +132,8 @@ Route::prefix('v1')->group(function () {
 
         // Profile
         Route::prefix('profile')->group(function(){
+
+            Route::delete('/',[ProfileController::class, 'deletePhoto']);
             //Regular user Profile
             Route::get('/regular-user', [ProfileController::class, 'show']);
             Route::post('/', [ProfileController::class, 'update']);

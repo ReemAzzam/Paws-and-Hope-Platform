@@ -32,16 +32,21 @@ class User extends Authenticatable
     'google_id',
 ];
 
-protected $casts = [
-    'email_verified_at' => 'datetime',
-    'latitude'          => 'decimal:8',
-    'longitude'         => 'decimal:8',
-    'two_factor_enabled'=> 'boolean',
-];
+    protected $casts = [
+        'email_verified_at' => 'datetime',
+        'latitude'          => 'decimal:8',
+        'longitude'         => 'decimal:8',
+        'two_factor_enabled'=> 'boolean',
+    ];
+
+    protected $appends = [
+    'photo_url',
+    ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'photo',
     ];
 
 protected static function booted()
@@ -142,5 +147,25 @@ protected static function booted()
     {
         return $this->belongsToMany(CommunityPost::class, 'post_likes', 'user_id', 'post_id')
                     ->withTimestamps();
+    }
+
+    public function getPhotoUrlAttribute()
+    {
+        if (!$this->photo) {
+            return null;
+        }
+
+        // إذا كانت الصورة URL كامل
+        if (filter_var($this->photo, FILTER_VALIDATE_URL)) {
+            return $this->photo;
+        }
+
+        // إزالة / من البداية
+        $path = ltrim($this->photo, '/');
+
+        // منع storage/storage
+        $path = preg_replace('#^storage/#', '', $path);
+
+        return asset('storage/' . $path);
     }
 }

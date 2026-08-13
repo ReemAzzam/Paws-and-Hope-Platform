@@ -62,8 +62,7 @@ class SponsorshipController extends Controller
                 'notes'          => $request->notes,
             ]);
 
-            $imagePath = $request->file('receipt_image')->store('receipts', 'public');
-            $receiptUrl = asset('storage/' . $imagePath);
+            $receiptPath = $request->file('receipt_image')->store('receipts', 'public');
 
             SponsorshipPayment::create([
                 'sponsorship_id'      => $sponsorship->id,
@@ -71,10 +70,9 @@ class SponsorshipController extends Controller
                 'currency'            => $request->currency,
                 'payment_method'      => $request->payment_method,
                 'transaction_number'  => $request->transaction_number,
-                'receipt_image_url'   => $receiptUrl,
+                'receipt_image_url'   => $receiptPath,
                 'verification_status' => 'pending',
             ]);
-
             $admins = User::role(['admin', 'SuperAdmin'])->get();
 
             foreach ($admins as $admin) {
@@ -197,8 +195,7 @@ class SponsorshipController extends Controller
         }
 
         try {
-            $imagePath = $request->file('receipt_image')->store('receipts', 'public');
-            $receiptUrl = asset('storage/' . $imagePath);
+            $receiptPath = $request->file('receipt_image')->store('receipts', 'public');
 
             $payment = SponsorshipPayment::create([
                 'sponsorship_id'      => $sponsorship->id,
@@ -206,13 +203,14 @@ class SponsorshipController extends Controller
                 'currency'            => $request->currency,
                 'payment_method'      => $request->payment_method,
                 'transaction_number'  => $request->transaction_number,
-                'receipt_image_url'   => $receiptUrl,
+                'receipt_image_url'   => $receiptPath,
                 'verification_status' => 'pending',
             ]);
 
             $animal = $sponsorship->animal;
-            $admins = User::role(['admin', 'SuperAdmin'])->get();
-
+           $admins = User::whereHas('roles', function ($query) {
+    $query->whereIn('name', ['admin', 'SuperAdmin']);
+})->get();
             foreach ($admins as $admin) {
                 $notification = NotificationTemplates::sponsorshipRenewal(
                     Auth::user()->full_name,
@@ -237,27 +235,7 @@ class SponsorshipController extends Controller
         }
     }
 
-    // public function mySponsorships()
-    // {
-    //     $sponsorships = Sponsorship::where('user_id', Auth::id())
-    //         ->where('status', 'active')
-    //         ->with([
-    //             'animal.photos',
-    //             'animal.updates' => function($query) {
-    //                 $query->latest();
-    //             },
-    //             'payments' => function($query) {
-    //                 $query->latest();
-    //             }
-    //         ])
-    //         ->get();
-
-    //     return response()->json([
-    //         'success'      => true,
-    //         'message'      => 'Sponsorship dashboard data retrieved successfully.',
-    //         'sponsorships' => $sponsorships
-    //     ], 200);
-    // }
+ 
         public function mySponsorships()
     {
         $sponsorships = Sponsorship::where('user_id', Auth::id())
@@ -275,37 +253,23 @@ class SponsorshipController extends Controller
 
         $sponsorships->each(function ($sponsorship) {
 
-            if ($sponsorship->animal && $sponsorship->animal->photos) {
+            // AnimalPhoto model handles the animal photo URL
+            // through the "url" accessor.
 
-                $sponsorship->animal->photos->each(function ($photo) {
+            // Normalize payment receipt URLs
+            $sponsorship->payments->each(function ($payment) {
 
-                    if ($photo->photo_url) {
-                        $photo->photo_url = asset('storage/' . ltrim($photo->photo_url, '/'));
-                    }
+                if (!$payment->receipt_image_url) {
+                    return;
+                }
 
-                });
+                if (!filter_var($payment->receipt_image_url, FILTER_VALIDATE_URL)) {
+                    $path = ltrim($payment->receipt_image_url, '/');
+                    $path = preg_replace('#^storage/#', '', $path);
 
-            }
-
-            // إذا كنت تريد أيضاً تحويل صور إيصالات الدفع إلى URL كامل
-            if ($sponsorship->payments) {
-
-                $sponsorship->payments->each(function ($payment) {
-
-                    if ($payment->receipt_image_url) {
-
-                        // إذا كانت القيمة أصلاً URL كامل لا نضيف storage مرة ثانية
-                        if (!filter_var($payment->receipt_image_url, FILTER_VALIDATE_URL)) {
-                            $payment->receipt_image_url = asset(
-                                'storage/' . ltrim($payment->receipt_image_url, '/')
-                            );
-                        }
-
-                    }
-
-                });
-
-            }
+                    $payment->receipt_image_url = asset('storage/' . $path);
+                }
+            });
         });
 
         return response()->json([
@@ -314,6 +278,62 @@ class SponsorshipController extends Controller
             'sponsorships' => $sponsorships
         ], 200);
     }
+    //     public function mySponsorships()
+    // {
+    //     $sponsorships = Sponsorship::where('user_id', Auth::id())
+    //         ->where('status', 'active')
+    //         ->with([
+    //             'animal.photos',
+    //             'animal.updates' => function ($query) {
+    //                 $query->latest();
+    //             },
+    //             'payments' => function ($query) {
+    //                 $query->latest();
+    //             }
+    //         ])
+    //         ->get();
+
+    //     $sponsorships->each(function ($sponsorship) {
+
+    //         if ($sponsorship->animal && $sponsorship->animal->photos) {
+
+    //             $sponsorship->animal->photos->each(function ($photo) {
+
+    //                 if ($photo->photo_url) {
+    //                     $photo->photo_url = asset('storage/' . ltrim($photo->photo_url, '/'));
+    //                 }
+
+    //             });
+
+    //         }
+
+    //         // إذا كنت تريد أيضاً تحويل صور إيصالات الدفع إلى URL كامل
+    //         if ($sponsorship->payments) {
+
+    //             $sponsorship->payments->each(function ($payment) {
+
+    //                 if ($payment->receipt_image_url) {
+
+    //                     // إذا كانت القيمة أصلاً URL كامل لا نضيف storage مرة ثانية
+    //                     if (!filter_var($payment->receipt_image_url, FILTER_VALIDATE_URL)) {
+    //                         $payment->receipt_image_url = asset(
+    //                             'storage/' . ltrim($payment->receipt_image_url, '/')
+    //                         );
+    //                     }
+
+    //                 }
+
+    //             });
+
+    //         }
+    //     });
+
+    //     return response()->json([
+    //         'success'      => true,
+    //         'message'      => 'Sponsorship dashboard data retrieved successfully.',
+    //         'sponsorships' => $sponsorships
+    //     ], 200);
+    // }
 
     public function availableAnimalsForSponsorship(Request $request)
     {

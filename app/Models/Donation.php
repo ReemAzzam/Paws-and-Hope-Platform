@@ -3,30 +3,7 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Database\Eloquent\Model;
-
-// class Donation extends Model
-// {
-//     use HasFactory;
-
-//     protected $fillable = [
-//         'user_id',
-//         'amount',
-//         'currency',
-//         'gateway_type',
-//         'transaction_number',
-//         'receipt_image_path',
-//         'status',
-//         'rejection_reason',
-//         'is_anonymous',
-//     ];
-
-//     public function user()
-//     {
-//         return $this->belongsTo(User::class);
-//     }
-// }
 
 
 class Donation extends Model
@@ -58,14 +35,13 @@ class Donation extends Model
         return $this->belongsTo(User::class);
     }
 
-    public function getReceiptImageUrlAttribute()
+        public function getReceiptImageUrlAttribute()
     {
         if (!$this->receipt_image_path) {
             return null;
         }
 
-        return asset(
-            'Storage/' . ltrim($this->receipt_image_path, '/')
-        );
+        // إرجاع المسار المباشر المخزن في قاعدة البيانات
+        return asset(ltrim($this->receipt_image_path, '/'));
     }
 }
