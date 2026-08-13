@@ -83,6 +83,7 @@ class AdoptionApplicationController extends Controller
           ->where('animal_id', $animal->id)
           ->where('status', 'active')
           ->first();
+          
 
        if ($activeSponsorship) {
 

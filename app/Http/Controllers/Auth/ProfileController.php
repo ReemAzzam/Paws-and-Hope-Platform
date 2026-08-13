@@ -4,7 +4,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
 use Illuminate\Validation\Rules\Password;
-use ApAp\Models\User;
+use App\Models\User;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -578,4 +578,16 @@ class ProfileController extends Controller
         'data'    => $user
     ], 200);
 }
+
+    public function deletePhoto(User $photo)
+    {
+        $relativePath = str_replace('/storage/', '', $photo->photo_url);
+        Storage::disk('public')->delete($relativePath);
+        $photo->delete();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Media asset dropped successfully.'
+        ]);
+    }
 }
