@@ -64,24 +64,6 @@ class DonationController extends Controller
                 'is_anonymous'       => $request->has('is_anonymous') ? (bool)$request->is_anonymous : false,
             ]);
 
-           /* $admins = User::whereHas('roles', function ($query) {
-                $query->whereIn('name', ['admin', 'SuperAdmin']);
-            })->get();
-
-            foreach ($admins as $admin) {
-                $notification = NotificationTemplates::newDonation(
-                    Auth::user()?->full_name ?? 'Anonymous User',
-                    $donation->amount . ' ' . $donation->currency
-                );
-
-                event(new SendNotificationEvent(
-                    $admin,
-                    $notification['title'],
-                    $notification['body'],
-                    $notification['data']
-                ));
-            }*/
-
             return response()->json([
                 'success' => true,
                 'message' => 'Donation logged successfully. Status held at pending manual auditing verification.',
@@ -115,11 +97,24 @@ class DonationController extends Controller
         $donation = Donation::find($id);
 
         if (!$donation) {
-            return response()->json(['success' => false, 'message' => 'Donation ledger record not found.'], 404);
+            return response()->json([
+                'success' => false, 
+                'message' => 'Donation ledger record not found.'
+            ], 404);
         }
 
-        if ($donation->status !== 'pending') {
-            return response()->json(['success' => false, 'message' => 'This transaction record has already been processed.'], 400);
+        if ($donation->status === 'rejected') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Cannot approve a donation that has already been rejected.'
+            ], 422);
+        }
+
+        if ($donation->status === 'verified') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'This donation has already been verified.'
+            ], 400);
         }
 
         $donation->update([
@@ -135,18 +130,38 @@ class DonationController extends Controller
 
     public function rejectDonation(Request $request, $id)
     {
-        $request->validate([
+        $validator = Validator::make($request->all(), [
             'rejection_reason' => 'required|string|max:255'
         ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors()
+            ], 422);
+        }
 
         $donation = Donation::find($id);
 
         if (!$donation) {
-            return response()->json(['success' => false, 'message' => 'Donation record not found.'], 404);
+            return response()->json([
+                'success' => false, 
+                'message' => 'Donation record not found.'
+            ], 404);
         }
 
-        if ($donation->status !== 'pending') {
-            return response()->json(['success' => false, 'message' => 'This transaction has already been resolved.'], 400);
+        if ($donation->status === 'verified') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'Cannot reject a donation that has already been verified.'
+            ], 422);
+        }
+
+        if ($donation->status === 'rejected') {
+            return response()->json([
+                'success' => false, 
+                'message' => 'This donation has already been rejected.'
+            ], 400);
         }
 
         $donation->update([
@@ -199,7 +214,6 @@ class DonationController extends Controller
             $query->where('status', $statusInput);
         }
 
-        // فلترة بحسب نوع التبرع
         if (!empty($donationTypeInput) && $donationTypeInput !== 'all') {
             $query->where('donation_type', $donationTypeInput);
         }
