@@ -357,6 +357,8 @@ Route::prefix('v1')->group(function () {
                     Route::put('/{id}', [CommunityPostController::class, 'update']);
                     // delete post
                     Route::delete('/{id}', [CommunityPostController::class, 'destroy']);
+
+                    Route::get('/admin', [CommunityPostController::class, 'getAllPostsForAdmin']);
                 });
             });
 
