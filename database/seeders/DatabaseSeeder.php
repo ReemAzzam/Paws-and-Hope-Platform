@@ -28,6 +28,8 @@ class DatabaseSeeder extends Seeder
             SponsorshipPaymentSeeder::class, // 11. رفع بيانات دفعات الكفالات
             RescueReportSeeder::class,
             GeneralConsultationSeeder::class,
+            CommunityPostSeeder::class,
+            AwarenessPostSeeder::class,
         ]);
 
         /*User::factory()->create([

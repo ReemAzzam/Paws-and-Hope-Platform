@@ -220,4 +220,30 @@ class CommunityPostController extends Controller
         return $path;
     }
 
+public function getAllPostsForAdmin()
+{
+    $posts = CommunityPost::with([ 
+        'category',           // جلب كافة حقول الجدول دون تحديد أسماء معينة
+        'animal:id,name,type'
+    ])
+    ->withCount('likes')
+    ->latest()
+    ->get()
+    ->map(function ($post) {
+        $post->makeHidden(['user_id']);
+
+        $post->image_url = $post->image_path 
+            ? asset('storage/' . ltrim($post->image_path, '/')) 
+            : null;
+
+        return $post;
+    });
+
+    return response()->json([
+        'success' => true,
+        'count'   => $posts->count(),
+        'posts'   => $posts,
+    ], 200);
+}
+
 }
