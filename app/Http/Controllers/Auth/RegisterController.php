@@ -79,11 +79,11 @@ class RegisterController extends Controller
                         'updated_at' => now(),
                     ]);
                 } elseif ($request->role === 'veterinarian') {
-                    // DB::table('veterinarians')->insert([
-                    //     'user_id'    => $user->id,
-                    //     'created_at' => now(),
-                    //     'updated_at' => now(),
-                    // ]);
+                    DB::table('veterinarians')->insert([
+                        'user_id'    => $user->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
                 } elseif ($request->role === 'regular_user') {
                     DB::table('regular_users')->insert([
                         'user_id'    => $user->id,

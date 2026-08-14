@@ -10,11 +10,15 @@ return new class extends Migration {
         Schema::create('veterinarians', function (Blueprint $table) {
             $table->id();
             $table->foreignId('user_id')->unique()->constrained()->onDelete('cascade');
-            
+
             $table->string('specialization');
             $table->string('clinic_location');
             $table->string('license_number')->unique();
             $table->string('working_hours')->nullable();
+
+            $table->unsignedInteger('experience_years')->nullable();
+            $table->text('about')->nullable();
+            $table->text('bio')->nullable();
 
             $table->boolean('is_approved')->default(false);
             $table->timestamp('approved_at')->nullable();
