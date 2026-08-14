@@ -14,6 +14,7 @@ return new class extends Migration {
         $table->enum('type', ['dog', 'cat', 'bird', 'rabbit', 'other']);
         $table->enum('gender', ['male', 'female', 'unknown'])->default('unknown');
         $table->integer('age')->nullable();
+        $table->date('age_recorded_at')->nullable();
         $table->enum('size', ['small', 'medium', 'large'])->nullable();
         $table->decimal('weight', 5, 2)->nullable();
 
