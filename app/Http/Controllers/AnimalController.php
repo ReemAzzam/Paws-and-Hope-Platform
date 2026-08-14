@@ -119,7 +119,13 @@ class AnimalController extends Controller
             ], 422);
         }
 
-        $animal = Animal::create($request->except('photos'));
+        $data = $request->except('photos');
+
+        $data['age_recorded_at'] = $request->filled('age')
+            ? now()->toDateString()
+            : null;
+
+        $animal = Animal::create($data);
 
         if ($request->hasFile('photos')) {
             foreach ($request->file('photos') as $index => $photo) {
@@ -226,7 +232,19 @@ class AnimalController extends Controller
         $oldHealthStatus = $animal->health_status;
         $oldAvailability = $animal->availability_status;
 
-        $updateData = $request->all();
+       $updateData = $request->except([
+            'photos',
+            'health_update_title',
+            'health_update_note',
+        ]);
+
+        if (
+            $request->filled('age') &&
+            (int) $request->age !== (int) $animal->getRawOriginal('age')
+        ) {
+            $updateData['age_recorded_at'] = now();
+        }
+
 
         if ($currentVetId) {
             $updateData['vet_id'] = $currentVetId;

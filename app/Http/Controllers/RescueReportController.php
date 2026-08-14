@@ -203,7 +203,7 @@ class RescueReportController extends Controller
                     $template['body'],
                     $template['data']
                 );
-            
+
 
             if ($request->status === 'resolved' && $oldStatus !== 'resolved') {
 
@@ -376,7 +376,7 @@ class RescueReportController extends Controller
                 'volunteer_id' => null,
             ]);
 
-            
+
             $template = NotificationTemplates::newRescueReport($report);
 
             // المتطوعون ضمن 5 كم
@@ -527,14 +527,14 @@ class RescueReportController extends Controller
                 return in_array($expLevel, ['intermediate', 'advanced']);
             }
 
-            return true; 
+            return true;
         });
 
         return response()->json([
             'success' => true,
             'message' => 'تم جلب البلاغات المتاحة المتوافقة مع مستوى خبرتك بنجاح.',
             'count'   => $filteredReports->count(),
-            'data'    => $filteredReports->values() 
+            'data'    => $filteredReports->values()
         ], 200);
     }
 
@@ -600,7 +600,7 @@ class RescueReportController extends Controller
             ->whereIn('status', ['dispatched', 'on_site', 'in_clinic'])
             ->with([
                 'images',
-                'user:id,full_name,phone_number' 
+                'user:id,full_name,phone_number'
             ])
             ->orderBy('updated_at', 'desc')
             ->get();
@@ -637,7 +637,7 @@ class RescueReportController extends Controller
         $formattedData = $history->map(function ($report) {
             return [
                 'id'               => $report->id,
-                'rescued_at'       => $report->updated_at, 
+                'rescued_at'       => $report->updated_at,
                 'latitude'         => $report->latitude,
                 'longitude'        => $report->longitude,
                 'location_address' => $report->location_address, // الموقع
@@ -694,7 +694,8 @@ class RescueReportController extends Controller
         ], 200);
     }
 
-        public function activeRescueReportsCount()
+
+    public function activeRescueReportsCount()
     {
         $count = RescueReport::whereIn('status', [
             'dispatched',
@@ -706,39 +707,41 @@ class RescueReportController extends Controller
             'success' => true,
             'data' => [
                 'active_rescue_reports' => $count
-            ]
-        ]);
+            ]], 200);
     }
-/**
- * Get all rescue reports for the currently authenticated user.
- */
-public function getMyRescueReports(Request $request)
-{
-    // أخذ المستخدم المسجل دخوله عبر Sanctum Token
-    $user = $request->user();
 
-    $reports = RescueReport::where('user_id', $user->id)
-        ->with(['images', 'volunteer.user:id,full_name'])
-        ->latest()
-        ->get()
-        ->map(function ($report) {
-            return [
-                'id'          => $report->id,
-                'animal_type' => ucfirst($report->animal_type),
-                'description' => $report->description, // عرض الوصف الخاص بالبلاغ
-                'severity'    => ucfirst($report->severity_level),
-                'status'      => ucfirst(str_replace('_', ' ', $report->status)),
-                'location'    => $report->location_address,
-                'reported_at' => $report->created_at->format('M d, Y'),
-                'volunteer'   => $report->volunteer?->user?->full_name,
-                'images'      => $report->images->pluck('image_path')->values(),
-            ];
-        });
+    public function getUserRescueReports($userId)
+    {
+        $user = User::find($userId);
 
-    return response()->json([
-        'success' => true,
-        'count'   => $reports->count(),
-        'data'    => $reports
-    ], 200);
-}
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found.'
+            ], 404);
+        }
+
+        $reports = RescueReport::where('user_id', $userId)
+            ->with(['images', 'volunteer.user:id,full_name'])
+            ->latest()
+            ->get()
+            ->map(function ($report) {
+                return [
+                    'id'          => $report->id,
+                    'animal_type' => ucfirst($report->animal_type),
+                    'severity'    => ucfirst($report->severity_level),
+                    'status'      => ucfirst(str_replace('_', ' ', $report->status)),
+                    'location'    => $report->location_address,
+                    'reported_at' => $report->created_at->format('M d, Y'),
+                    'volunteer'   => $report->volunteer?->user?->full_name,
+                    'images'      => $report->images->pluck('image_path')->values(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'count'   => $reports->count(),
+            'data'    => $reports
+        ], 200);
+    }
 }

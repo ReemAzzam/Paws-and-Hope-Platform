@@ -119,7 +119,7 @@ Route::prefix('v1')->group(function () {
         //Get the donations report for user dashboard
         Route::get('/report_data',[TransparencyDashboardController::class, 'getFinancialReportData']);
     });
-     
+
      // ============== Public Consultations ==============
     Route::get('/public-consultations', [GeneralConsultationController::class, 'getAllPublicConsultations']);
 
@@ -231,9 +231,7 @@ Route::prefix('v1')->group(function () {
             Route::patch('/{application}/complete',[AdoptionApplicationController::class,  'complete']);
 
             Route::get('/applications/{id}',[AdoptionApplicationController::class, 'show']);
-            Route::post('/{application}/complete', 
-    [AdoptionApplicationController::class, 'complete']
-);
+            Route::post('/{application}/complete',[AdoptionApplicationController::class, 'complete']);
 
         });
 
@@ -265,7 +263,7 @@ Route::prefix('v1')->group(function () {
             // عرض البلاغات القريبة من المتطوع
             Route::get('/available', [RescueReportController::class, 'availableReports'])
                 ->middleware('role:volunteer');
-            Route::get('/user/rescue-reports', [RescueReportController::class, 'getMyRescueReports']);
+
 
         });
         // تحديث موقع المتطوع أثناء المهمة

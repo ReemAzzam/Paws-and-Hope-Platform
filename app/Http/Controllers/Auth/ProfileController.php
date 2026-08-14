@@ -37,6 +37,8 @@ class ProfileController extends Controller
 
         $rescueReportsCount = \App\Models\RescueReport::where('user_id', $user->id)
             ->count();
+        $GeneralConsultationsCount = \App\Models\GeneralConsultation::where('user_id', $user->id)
+            ->count();
 
         return response()->json([
             'success' => true,
@@ -68,6 +70,8 @@ class ProfileController extends Controller
                     'sponsorships' => $sponsorshipsCount,
 
                     'rescue_reports' => $rescueReportsCount,
+
+                    'general_consultations' => $GeneralConsultationsCount,
                 ]
 
             ]
@@ -78,172 +82,62 @@ class ProfileController extends Controller
      * تحديث بيانات الملف الشخصي
      */
     public function update(Request $request)
-{
-    $validator = Validator::make($request->all(), [
-        'full_name'     => 'sometimes|string|max:255',
-        'country_code'  => 'sometimes|string|max:5',
-        'phone_number'  => [
-            'sometimes',
-            'required_with:country_code',
-            'phone:' . $request->input('country_code', $request->user()->country_code),
-        ],
-        'governorate'   => 'sometimes|string|max:100',
-        'photo'         => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-    ]);
+    {
+        $validator = Validator::make($request->all(), [
+            'full_name'     => 'sometimes|string|max:255',
+            'country_code'  => 'sometimes|string|max:5',
+            'phone_number'  => [
+                'sometimes',
+                'required_with:country_code',
+                'phone:' . $request->input('country_code', $request->user()->country_code),
+            ],
+            'governorate'   => 'sometimes|string|max:100',
+            'photo'         => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
+        ]);
 
-    if ($validator->fails()) {
-        return response()->json([
-            'success' => false,
-            'errors'  => $validator->errors()
-        ], 422);
-    }
-
-    $user = $request->user();
-
-    // تحديث الصورة
-    if ($request->hasFile('photo')) {
-        if ($user->photo && Storage::disk('public')->exists($user->photo)) {
-            Storage::disk('public')->delete($user->photo);
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors()
+            ], 422);
         }
-        $user->photo = $request->file('photo')->store('users', 'public');
+
+        $user = $request->user();
+
+        // تحديث الصورة
+        if ($request->hasFile('photo')) {
+            if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+                Storage::disk('public')->delete($user->photo);
+            }
+            $user->photo = $request->file('photo')->store('users', 'public');
+        }
+
+        // تحديث باقي الحقول
+        $user->fill($request->only([
+            'full_name',
+            'country_code',
+            'phone_number',
+            'governorate',
+        ]));
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Profile updated successfully',
+            'user'    => [
+                'id'           => $user->id,
+                'full_name'    => $user->full_name,
+                'email'        => $user->email,
+                'country_code' => $user->country_code,
+                'phone_number' => $user->phone_number,
+                'governorate'  => $user->governorate,
+                'photo'        => $user->photo ? asset('storage/' . $user->photo) : null,
+            ]
+        ]);
     }
 
-    // تحديث باقي الحقول
-    $user->fill($request->only([
-        'full_name',
-        'country_code',
-        'phone_number',
-        'governorate',
-    ]));
 
-    $user->save();
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Profile updated successfully',
-        'user'    => [
-            'id'           => $user->id,
-            'full_name'    => $user->full_name,
-            'email'        => $user->email,
-            'country_code' => $user->country_code,
-            'phone_number' => $user->phone_number,
-            'governorate'  => $user->governorate,
-            'photo'        => $user->photo ? asset('storage/' . $user->photo) : null,
-        ]
-    ]);
-}
-    //     public function update(Request $request)
-    // {
-    //     \Log::info('Has file?', [$request->hasFile('photo')]);
-    // \Log::info('All files', $request->allFiles());
-    //     $validator = Validator::make($request->all(), [
-    //         'full_name'    => 'sometimes|string|max:255',
-    //         'country_code' => 'sometimes|string|max:5',
-    //         'phone_number' => 'sometimes|string|max:15',
-    //         'governorate'  => 'sometimes|string|max:100',
-    //         'photo'        => 'nullable|image|mimes:jpg,jpeg,png|max:2048',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json([
-    //             'success' => false,
-    //             'errors'  => $validator->errors()
-    //         ], 422);
-    //     }
-
-    //     $user = $request->user();
-
-    //     // تحديث الصورة لو موجودة
-    //     if ($request->hasFile('photo')) {
-    //         // حذف الصورة القديمة
-    //         if ($user->photo && Storage::disk('public')->exists($user->photo)) {
-    //             Storage::disk('public')->delete($user->photo);
-    //         }
-
-    //         // حفظ الجديدة
-    //         $user->photo = $request->file('photo')->store('users', 'public');
-    //     }
-
-    //     // تحديث باقي الحقول (بدون photo)
-    //     $user->fill($request->only([
-    //         'full_name',
-    //         'country_code',
-    //         'phone_number',
-    //         'governorate',
-    //     ]));
-
-    //     $user->save();
-
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Profile updated successfully',
-    //         'user'    => [
-    //             'id'           => $user->id,
-    //             'full_name'    => $user->full_name,
-    //             'email'        => $user->email,
-    //             'country_code' => $user->country_code,
-    //             'phone_number' => $user->phone_number,
-    //             'governorate'  => $user->governorate,
-    //             'photo'        => $user->photo ? asset('storage/' . $user->photo) : null,
-    //         ]
-    //     ]);
-    // }
-
-//     public function update(Request $request)
-// {
-//     // // ====================== Debugging كامل ======================
-//     // \Log::info('========== START DEBUG ==========');
-//     // \Log::info('Method: ' . $request->method());
-//     // \Log::info('Content-Type: ' . $request->header('Content-Type'));
-//     // \Log::info('All Headers:', $request->headers->all());
-//     // \Log::info('All Input:', $request->all());
-//     // \Log::info('All Files:', $request->allFiles());
-//     // \Log::info('Has file photo?: ' . ($request->hasFile('photo') ? 'YES' : 'NO'));
-//     // \Log::info('File photo exists?: ' . ($request->file('photo') ? 'YES' : 'NO'));
-
-//     // if ($request->file('photo')) {
-//     //     \Log::info('File details:', [
-//     //         'original_name' => $request->file('photo')->getClientOriginalName(),
-//     //         'mime' => $request->file('photo')->getMimeType(),
-//     //         'size' => $request->file('photo')->getSize(),
-//     //         'error' => $request->file('photo')->getError(),
-//     //         'isValid' => $request->file('photo')->isValid(),
-//     //     ]);
-//     // }
-
-//     // \Log::info('php.ini upload_max_filesize: ' . ini_get('upload_max_filesize'));
-//     // \Log::info('php.ini post_max_size: ' . ini_get('post_max_size'));
-//     // \Log::info('========== END DEBUG ==========');
-
-//     // // باقي الكود العادي...
-//     $user = $request->user();
-
-//     if ($request->hasFile('photo')) {
-//         if ($user->photo && Storage::disk('public')->exists($user->photo)) {
-//             Storage::disk('public')->delete($user->photo);
-//         }
-//         $user->photo = $request->file('photo')->store('users', 'public');
-//     }
-
-//     $user->fill($request->only([
-//         'full_name',
-//         'country_code',
-//         'phone_number',
-//         'governorate',
-//     ]));
-
-//     $user->save();
-
-//     return response()->json([
-//         'success' => true,
-//         'message' => 'Profile updated successfully',
-//         'user' => [
-//             'id'           => $user->id,
-//             'full_name'    => $user->full_name,
-//             'photo'        => $user->photo ? asset('storage/' . $user->photo) : null,
-//         ]
-//     ]);
-// }
     /**
      * تغيير كلمة المرور
      */
@@ -424,96 +318,6 @@ class ProfileController extends Controller
 
 
 
-
-    // public function updateVetProfile(Request $request)
-    // {
-    //     $user = $request->user();
-
-    //     if (!$user->hasRole('veterinarian')) {
-    //         return response()->json(['success' => false, 'message' => 'Unauthorized. This route is for veterinarians only.'], 403);
-    //     }
-
-    //     $vet = $user->veterinarian;
-
-    //     $validator = Validator::make($request->all(), [
-    //         'full_name'    => 'sometimes|required|string|max:255',
-    //         'phone_number' => 'sometimes|required|string|max:20',
-    //         'photo'          => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
-    //         'governorate'  => 'sometimes|required|string|max:100',
-    //         'clinic_address' => 'sometimes|string|max:255',
-    //         'specialization' => 'sometimes|string|max:255',
-    //         'bio'            => 'sometimes|string',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-    //     }
-
-    //     DB::transaction(function () use ($request, $user, $vet) {
-    //         $user->update($request->only(['full_name', 'phone_number', 'governorate' , 'photo']));
-    //         if ($vet) {
-    //             $vet->update($request->only(['clinic_address', 'specialization', 'bio']));
-    //         }
-    //     });
-
-    //     $user->load('veterinarian');
-
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Veterinarian profile updated successfully.',
-    //         'data'    => $user
-    //     ], 200);
-    // }
-
-    // public function updateVolunteerProfile(Request $request)
-    // {
-    //     $user = $request->user();
-
-    //     if (!$user->hasRole('volunteer')) {
-    //         return response()->json(['success' => false, 'message' => 'Unauthorized. This route is for volunteers only.'], 403);
-    //     }
-
-    //     $volunteer = $user->volunteer;
-
-    //     $validator = Validator::make($request->all(), [
-    //         'full_name'    => 'sometimes|required|string|max:255',
-    //         'phone_number' => 'sometimes|required|string|max:20',
-    //         'governorate'  => 'sometimes|required|string|max:100',
-    //         'photo'          => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
-    //         'skills'            => 'sometimes|string',
-    //         'available_hours'   => 'sometimes|integer',
-    //     ]);
-
-    //     if ($validator->fails()) {
-    //         return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-    //     }
-    //     if ($request->hasFile('photo')) {
-
-    // // حذف الصورة القديمة
-    //     if ($user->photo && Storage::disk('public')->exists($user->photo)) {
-    //         Storage::disk('public')->delete($user->photo);
-    //     }
-
-    //     // حفظ الجديدة
-    //     $user->photo = $request->file('photo')->store('users', 'public');
-    // }
-
-    //     DB::transaction(function () use ($request, $user, $volunteer) {
-    //         $user->update($request->only(['full_name', 'phone_number', 'governorate' , 'photo']));
-
-    //         if ($volunteer) {
-    //             $volunteer->update($request->only(['skills', 'available_hours']));
-    //         }
-    //     });
-
-    //     $user->load('volunteer');
-
-    //     return response()->json([
-    //         'success' => true,
-    //         'message' => 'Volunteer profile updated successfully.',
-    //         'data'    => $user
-    //     ], 200);
-    // }
     public function updateVolunteerProfile(Request $request)
 {
     $user = $request->user();
