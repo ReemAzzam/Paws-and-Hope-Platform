@@ -26,7 +26,8 @@ class DatabaseSeeder extends Seeder
             DonationSeeder::class, // 9. رفع التبرعات التجريبية
             SponsorshipSeeder::class, // 10. رفع بيانات الكفالات التجريبية
             SponsorshipPaymentSeeder::class, // 11. رفع بيانات دفعات الكفالات
-            RescueReportSeeder::class
+            RescueReportSeeder::class,
+            GeneralConsultationSeeder::class,
         ]);
 
         /*User::factory()->create([

@@ -694,6 +694,7 @@ class RescueReportController extends Controller
         ], 200);
     }
 
+<<<<<<< Updated upstream
         public function activeRescueReportsCount()
     {
         $count = RescueReport::whereIn('status', [
@@ -707,6 +708,40 @@ class RescueReportController extends Controller
             'data' => [
                 'active_rescue_reports' => $count
             ]
+=======
+    public function getUserRescueReports($userId)
+    {
+        $user = User::find($userId);
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not found.'
+            ], 404);
+        }
+
+        $reports = RescueReport::where('user_id', $userId)
+            ->with(['images', 'volunteer.user:id,full_name'])
+            ->latest()
+            ->get()
+            ->map(function ($report) {
+                return [
+                    'id'          => $report->id,
+                    'animal_type' => ucfirst($report->animal_type),
+                    'severity'    => ucfirst($report->severity_level),
+                    'status'      => ucfirst(str_replace('_', ' ', $report->status)),
+                    'location'    => $report->location_address,
+                    'reported_at' => $report->created_at->format('M d, Y'),
+                    'volunteer'   => $report->volunteer?->user?->full_name,
+                    'images'      => $report->images->pluck('image_path')->values(),
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'count'   => $reports->count(),
+            'data'    => $reports
+>>>>>>> Stashed changes
         ], 200);
     }
 }
