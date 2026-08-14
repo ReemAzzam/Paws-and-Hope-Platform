@@ -271,6 +271,7 @@ class ProfileController extends Controller
             'clinic_address' => 'sometimes|string|max:255',
             'specialization' => 'sometimes|string|max:255',
             'bio'            => 'sometimes|string',
+            
         ]);
 
         if ($validator->fails()) {
