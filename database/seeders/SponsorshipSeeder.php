@@ -4,15 +4,33 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Sponsorship;
+use App\Models\User;
+use App\Models\Animal;
 
 class SponsorshipSeeder extends Seeder
 {
     public function run(): void
     {
+        // جلب الـ IDs المتاحة للمستخدمين والحيوانات
+        $userIds = User::pluck('id')->toArray();
+        $animalIds = Animal::pluck('id')->toArray();
+
+        // التوقف بحذر إذا كانت إحدى الجداول الأساسية فارغة
+        if (empty($userIds) || empty($animalIds)) {
+            $this->command->warn('⚠️ Skipping SponsorshipSeeder: No users or animals found.');
+            return;
+        }
+
+        // دالة جلب user_id عشوائي من الموجودين فعلياً
+        $getRandomUserId = fn() => $userIds[array_rand($userIds)];
+        
+        // دالة تعيين animal_id بالترتيب تجنباً للتكرار غير المقصود
+        $getAnimalId = fn($index) => $animalIds[$index % count($animalIds)];
+
         Sponsorship::insert([
             [
-                'user_id' => 7,
-                'animal_id' => 1,
+                'user_id' => $getRandomUserId(),
+                'animal_id' => $getAnimalId(0),
                 'monthly_amount' => 25,
                 'currency' => 'USD',
                 'status' => 'active',
@@ -23,8 +41,8 @@ class SponsorshipSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'user_id' => 8,
-                'animal_id' => 2,
+                'user_id' => $getRandomUserId(),
+                'animal_id' => $getAnimalId(1),
                 'monthly_amount' => 150000,
                 'currency' => 'SYP',
                 'status' => 'active',
@@ -35,8 +53,8 @@ class SponsorshipSeeder extends Seeder
                 'updated_at' => now(),
             ],
             [
-                'user_id' => 9,
-                'animal_id' => 3,
+                'user_id' => $getRandomUserId(),
+                'animal_id' => $getAnimalId(2),
                 'monthly_amount' => 30,
                 'currency' => 'USD',
                 'status' => 'pending',
@@ -47,8 +65,8 @@ class SponsorshipSeeder extends Seeder
                 'updated_at' => now()->subDays(4),
             ],
             [
-                'user_id' => 9,
-                'animal_id' => 4,
+                'user_id' => $getRandomUserId(),
+                'animal_id' => $getAnimalId(3),
                 'monthly_amount' => 200000,
                 'currency' => 'SYP',
                 'status' => 'paused',
@@ -59,8 +77,8 @@ class SponsorshipSeeder extends Seeder
                 'updated_at' => now()->subDays(10),
             ],
             [
-                'user_id' => 8,
-                'animal_id' => 5,
+                'user_id' => $getRandomUserId(),
+                'animal_id' => $getAnimalId(4),
                 'monthly_amount' => 40,
                 'currency' => 'USD',
                 'status' => 'cancelled',

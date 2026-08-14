@@ -4,14 +4,28 @@ namespace Database\Seeders;
 
 use Illuminate\Database\Seeder;
 use App\Models\Donation;
+use App\Models\User;
 
 class DonationSeeder extends Seeder
 {
     public function run(): void
     {
+        // جلب جميع الـ IDs المتاحة للمستخدمين
+        $userIds = User::pluck('id')->toArray();
+
+        // إذا لم يوجد أي مستخدم في قاعدة البيانات، نستخدم null لمنع حدوث Crash
+        if (empty($userIds)) {
+            $this->command->warn('⚠️ No users found in database. Setting user_id to null for donations.');
+        }
+
+        // دالة مساعدة لاختيار user_id موجود بالفعل أو null
+        $getRandomUserId = function () use ($userIds) {
+            return !empty($userIds) ? $userIds[array_rand($userIds)] : null;
+        };
+
         Donation::insert([
             [
-                'user_id' => 7,
+                'user_id' => $getRandomUserId(),
                 'amount' => 500000,
                 'currency' => 'SYP',
                 'gateway_type' => 'syriatel_cash',
@@ -24,7 +38,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(9),
             ],
             [
-                'user_id' => 8,
+                'user_id' => $getRandomUserId(),
                 'amount' => 250000,
                 'currency' => 'SYP',
                 'gateway_type' => 'mtn_cash',
@@ -37,7 +51,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(3),
             ],
             [
-                'user_id' => 9,
+                'user_id' => $getRandomUserId(),
                 'amount' => 100,
                 'currency' => 'USD',
                 'gateway_type' => 'paypal',
@@ -50,7 +64,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(6),
             ],
             [
-                'user_id' => 6,
+                'user_id' => $getRandomUserId(),
                 'amount' => 50,
                 'currency' => 'USD',
                 'gateway_type' => 'western_union',
@@ -63,7 +77,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(2),
             ],
             [
-                'user_id' => 9,
+                'user_id' => $getRandomUserId(),
                 'amount' => 100000,
                 'currency' => 'SYP',
                 'gateway_type' => 'al_haram',
@@ -76,7 +90,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(4),
             ],
             [
-                'user_id' => 7,
+                'user_id' => $getRandomUserId(),
                 'amount' => 75000,
                 'currency' => 'SYP',
                 'gateway_type' => 'hand_delivery',
@@ -89,7 +103,7 @@ class DonationSeeder extends Seeder
                 'updated_at' => now()->subDays(14),
             ],
             [
-                'user_id' => 9,
+                'user_id' => $getRandomUserId(),
                 'amount' => 200,
                 'currency' => 'USD',
                 'gateway_type' => 'external',

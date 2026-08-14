@@ -6,6 +6,7 @@ use App\Models\Animal;
 use App\Models\AnimalPhoto;
 use Illuminate\Database\Seeder;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
 
 class AnimalSeeder extends Seeder
 {
