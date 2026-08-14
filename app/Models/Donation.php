@@ -14,6 +14,7 @@ class Donation extends Model
         'user_id',
         'amount',
         'currency',
+        'donation_type',
         'gateway_type',
         'transaction_number',
         'receipt_image_path',

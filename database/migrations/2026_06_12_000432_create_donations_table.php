@@ -14,7 +14,16 @@ return new class extends Migration
             $table->decimal('amount', 12, 2);
             // إضافة حقل العملة (USD أو SYP)
             $table->enum('currency', ['SYP', 'USD'])->default('SYP'); 
-            // توسيع خيارات البوابات لتشمل الحوالات الخارجية والدفع اليدوي
+
+            $table->enum('donation_type', [
+                'food_and_feeding',
+                'surgery_and_neutering',
+                'emergency_treatment',
+                'general_donation',
+                'transport_and_rescue',
+                'shelter_and_housing',
+            ])->default('general_donation');
+
             $table->enum('gateway_type', [
                 'al_haram', 
                 'al_fouad', 

@@ -17,12 +17,13 @@ class DonationController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'amount'             => 'required|numeric|min:1',
-            'currency'           => 'required|in:SYP,USD',
-            'gateway_type'       => 'required|in:al_haram,al_fouad,syriatel_cash,mtn_cash,western_union,paypal,gofundme,hand_delivery,external',
-            'transaction_number' => 'required|string|max:100',
-            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg,avif|max:10240',
-            'is_anonymous'       => 'nullable|boolean',
+            'amount'            => 'required|numeric|min:1',
+            'currency'          => 'required|in:SYP,USD',
+            'donation_type'     => 'required|in:food_and_feeding,surgery_and_neutering,emergency_treatment,general_donation,transport_and_rescue,shelter_and_housing,all',
+            'gateway_type'      => 'required|in:al_haram,al_fouad,syriatel_cash,mtn_cash,western_union,paypal,gofundme,hand_delivery,external',
+            'transaction_number'=> 'required|string|max:100',
+            'receipt_image'     => 'required|image|mimes:jpeg,png,jpg,avif|max:10240',
+            'is_anonymous'      => 'nullable|boolean',
         ]);
 
         if ($validator->fails()) {
@@ -32,7 +33,6 @@ class DonationController extends Controller
             ], 422);
         }
 
-        // التحقق من تكرار رقم العملية فقط إذا تم إرساله
         if ($request->filled('transaction_number')) {
             $exists = Donation::where('transaction_number', $request->transaction_number)->exists();
             if ($exists) {
@@ -56,13 +56,15 @@ class DonationController extends Controller
                 'user_id'            => $userId,
                 'amount'             => $request->amount,
                 'currency'           => $request->currency,
+                'donation_type'      => $request->donation_type,
                 'gateway_type'       => $request->gateway_type,
                 'transaction_number' => $request->transaction_number,
                 'receipt_image_path' => $receiptPath,
                 'status'             => 'pending',
                 'is_anonymous'       => $request->has('is_anonymous') ? (bool)$request->is_anonymous : false,
             ]);
-            $admins = User::whereHas('roles', function ($query) {
+
+           /* $admins = User::whereHas('roles', function ($query) {
                 $query->whereIn('name', ['admin', 'SuperAdmin']);
             })->get();
 
@@ -78,7 +80,7 @@ class DonationController extends Controller
                     $notification['body'],
                     $notification['data']
                 ));
-            }
+            }*/
 
             return response()->json([
                 'success' => true,
@@ -161,15 +163,18 @@ class DonationController extends Controller
 
     public function index(Request $request)
     {
-        $statusInput = $request->query('status', $request->input('status'));
-        $searchInput = $request->query('search', $request->input('search'));
+        $statusInput       = $request->query('status', $request->input('status'));
+        $searchInput       = $request->query('search', $request->input('search'));
+        $donationTypeInput = $request->query('donation_type', $request->input('donation_type'));
 
         $validator = Validator::make([
-            'status' => $statusInput,
-            'search' => $searchInput,
+            'status'        => $statusInput,
+            'search'        => $searchInput,
+            'donation_type' => $donationTypeInput,
         ], [
-            'status' => 'nullable|in:all,pending,verified,rejected',
-            'search' => 'nullable|string|max:255',
+            'status'        => 'nullable|in:all,pending,verified,rejected',
+            'search'        => 'nullable|string|max:255',
+            'donation_type' => 'nullable|in:all,food_and_feeding,surgery_and_neutering,emergency_treatment,general_donation,transport_and_rescue,shelter_and_housing',
         ]);
 
         if ($validator->fails()) {
@@ -194,6 +199,11 @@ class DonationController extends Controller
             $query->where('status', $statusInput);
         }
 
+        // فلترة بحسب نوع التبرع
+        if (!empty($donationTypeInput) && $donationTypeInput !== 'all') {
+            $query->where('donation_type', $donationTypeInput);
+        }
+
         $donations = $query->orderBy('created_at', 'desc')->get();
 
         $formattedData = $donations->map(function ($donation) {
@@ -205,6 +215,7 @@ class DonationController extends Controller
                 'email'              => $donation->is_anonymous
                                         ? null
                                         : ($donation->user?->email ?? null),
+                'donation_type'      => $donation->donation_type,
                 'gateway_type'       => $donation->gateway_type,
                 'transaction_number' => $donation->transaction_number ?? 'N/A',
                 'amount'             => "{$donation->amount} {$donation->currency}",
