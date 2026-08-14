@@ -20,8 +20,8 @@ class DonationController extends Controller
             'amount'             => 'required|numeric|min:1',
             'currency'           => 'required|in:SYP,USD',
             'gateway_type'       => 'required|in:al_haram,al_fouad,syriatel_cash,mtn_cash,western_union,paypal,gofundme,hand_delivery,external',
-            'transaction_number' => 'nullable|string|max:100',
-            'receipt_image'      => 'nullable|image|mimes:jpeg,png,jpg,avif|max:10240',
+            'transaction_number' => 'required|string|max:100',
+            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg,avif|max:10240',
             'is_anonymous'       => 'nullable|boolean',
         ]);
 

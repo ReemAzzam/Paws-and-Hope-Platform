@@ -381,7 +381,7 @@ class SponsorshipController extends Controller
             return response()->json(['message' => 'You are not authorized to perform this action.'], 403);
         }
 
-        $query = Sponsorship::with(['user:id,full_name,email', 'animal:id,name', 'payments']);
+        $query = Sponsorship::with(['sponsor:id,full_name,email', 'animal:id,name', 'payments']);
 
         if ($request->filled('status')) {
             $query->where('status', $request->status);
@@ -397,7 +397,7 @@ class SponsorshipController extends Controller
 
     public function show($id)
     {
-        $sponsorship = Sponsorship::with(['user', 'animal', 'payments.verifiedBy'])->findOrFail($id);
+        $sponsorship = Sponsorship::with(['sponsor', 'animal', 'payments.verifiedBy'])->findOrFail($id);
 
         if ($sponsorship->user_id !== Auth::id() && !Auth::user()->hasRole('admin', 'api') && !Auth::user()->hasRole('SuperAdmin', 'api')) {
             return response()->json(['message' => 'You are not authorized to view this data.'], 403);
