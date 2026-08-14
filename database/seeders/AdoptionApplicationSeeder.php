@@ -12,14 +12,36 @@ class AdoptionApplicationSeeder extends Seeder
     public function run(): void
     {
         $users = User::role('regular_user')->take(10)->get();
-        $animals = Animal::where('availability_status', 'available')->take(20)->get();
+
+        $animals = Animal::where('availability_status', 'available')
+            ->take(20)
+            ->get();
 
         if ($users->isEmpty() || $animals->isEmpty()) {
-            $this->command->warn('No enough users or animals found. Seed them first.');
+            $this->command->warn(
+                'Not enough users or animals found. Seed them first.'
+            );
+
             return;
         }
 
-        $statuses = ['pending', 'pending', 'pending', 'approved', 'rejected', 'in_trial'];
+        /*
+        |--------------------------------------------------------------------------
+        | Adoption Application Statuses
+        |--------------------------------------------------------------------------
+        | pending   = بانتظار مراجعة الأدمن
+        | approved  = تمت الموافقة، والحيوان محجوز مؤقتاً
+        | rejected  = تم رفض الطلب
+        | completed = تمت عملية التبني فعلياً
+        */
+        $statuses = [
+            'pending',
+            'pending',
+            'pending',
+            'approved',
+            'rejected',
+            'completed',
+        ];
 
         $detailsList = [
             "--- Adoption Application Form ---\n" .
@@ -70,6 +92,7 @@ class AdoptionApplicationSeeder extends Seeder
         $created = 0;
 
         for ($i = 0; $i < 12; $i++) {
+
             $user = $users[$i % $users->count()];
             $animal = $animals[$i % $animals->count()];
 
@@ -83,19 +106,28 @@ class AdoptionApplicationSeeder extends Seeder
 
             $status = $statuses[$i % count($statuses)];
 
+            $approvedAt = in_array($status, [
+                'approved',
+                'completed',
+            ])
+                ? now()->subDays(rand(1, 7))
+                : null;
+
             AdoptionApplication::create([
                 'user_id'             => $user->id,
-                'animal_id'           => $animal->id,
+                'animal_id'            => $animal->id,
                 'application_details' => $detailsList[$i % count($detailsList)],
                 'status'              => $status,
-                'approved_at'         => in_array($status, ['approved', 'in_trial']) ? now()->subDays(rand(1, 7)) : null,
-                'created_at'          => now()->subDays(rand(0, 15)),
-                'updated_at'          => now()->subDays(rand(0, 5)),
+                'approved_at'         => $approvedAt,
+                'created_at'           => now()->subDays(rand(0, 15)),
+                'updated_at'           => now()->subDays(rand(0, 5)),
             ]);
 
             $created++;
         }
 
-        $this->command->info("Created {$created} adoption applications for testing");
+        $this->command->info(
+            "Created {$created} adoption applications for testing"
+        );
     }
 }

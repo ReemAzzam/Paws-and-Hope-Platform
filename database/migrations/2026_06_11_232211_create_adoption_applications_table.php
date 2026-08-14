@@ -3,6 +3,7 @@
 use Illuminate\Database\Migrations\Migration;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Support\Facades\Schema;
+use Illuminate\Support\Facades\DB;
 
 return new class extends Migration {
     public function up()
@@ -13,7 +14,7 @@ return new class extends Migration {
             $table->foreignId('animal_id')->constrained();
 
             $table->text('application_details');
-            $table->enum('status', ['pending', 'approved', 'rejected', 'in_trial'])->default('pending');
+            $table->enum('status', ['pending', 'approved', 'rejected','completed'])->default('pending');
             $table->timestamp('approved_at')->nullable();
 
             $table->timestamps();

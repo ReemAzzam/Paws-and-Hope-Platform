@@ -24,7 +24,8 @@ return new class extends Migration {
         $table->boolean('is_vaccinated')->default(false);
         $table->boolean('is_neutered')->default(false);
 
-        $table->enum('availability_status', ['available', 'pending', 'adopted', 'sponsored', 'under_treatment'])->default('under_treatment');
+        $table->enum('availability_status', ['available', 'reserved', 'adopted', 'sponsored', 'under_treatment'])->default('under_treatment');
+        $table->timestamp('reserved_until')->nullable();
         $table->boolean('is_urgent')->default(false);
 
         $table->unsignedBigInteger('vet_id')->nullable();

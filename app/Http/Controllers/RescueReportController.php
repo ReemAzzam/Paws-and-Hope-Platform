@@ -630,7 +630,7 @@ class RescueReportController extends Controller
 
         $history = RescueReport::where('volunteer_id', $volunteer->id)
             ->where('status', 'resolved')
-            ->with(['images']) 
+            ->with(['images'])
             ->orderBy('updated_at', 'desc')
             ->get();
 
@@ -690,6 +690,22 @@ class RescueReportController extends Controller
                 'available_reports'        => $availableReportsCount,
                 'active_missions'          => $activeMissionsCount,
                 'completed_rescue_reports' => $completedRescueReportsCount,
+            ]
+        ], 200);
+    }
+
+        public function activeRescueReportsCount()
+    {
+        $count = RescueReport::whereIn('status', [
+            'dispatched',
+            'on_site',
+            'in_clinic'
+        ])->count();
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'active_rescue_reports' => $count
             ]
         ], 200);
     }

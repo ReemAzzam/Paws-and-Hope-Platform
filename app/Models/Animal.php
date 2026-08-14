@@ -13,9 +13,15 @@ class Animal extends Model
     protected $fillable = [
         'name', 'type', 'gender', 'age', 'size', 'weight',
         'description', 'story', 'health_status', 'is_vaccinated',
-        'is_neutered', 'is_adoptable', 'availability_status', 'is_urgent',
+        'is_neutered', 'is_adoptable', 'availability_status','reserved_until', 'is_urgent',
          'vet_id', 'rescue_report_id'
     ];
+
+    protected $casts = [
+    // ...
+    'reserved_until' => 'datetime',
+    ];
+
 
     public function vet()
     {

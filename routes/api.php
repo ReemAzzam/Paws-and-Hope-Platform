@@ -71,10 +71,12 @@ Route::prefix('v1')->group(function () {
 
     Route::prefix('rescue/reports')->group(function () {
 
-    Route::post('/', [RescueReportController::class, 'store']);
+        Route::post('/', [RescueReportController::class, 'store']);
 
-    // تتبع بلاغ معيّن
-    Route::get('/{id}/track', [RescueReportController::class, 'track']);
+        Route::get('/active/count/',[RescueReportController::class, 'activeRescueReportsCount']);
+
+        // تتبع بلاغ معيّن
+        Route::get('/{id}/track', [RescueReportController::class, 'track']);
     });
 
      // Public Lost & Found
@@ -216,17 +218,22 @@ Route::prefix('v1')->group(function () {
        // ============ Adoption ==========
         Route::prefix('adoption')->group(function () {
             Route::post('/apply', [AdoptionApplicationController::class, 'store']);
-            Route::put('/{id}', [AdoptionApplicationController::class, 'update']);
+            Route::put('/{application}', [AdoptionApplicationController::class, 'update']);
             Route::get('/my-applications', [AdoptionApplicationController::class, 'myApplications']);
-            Route::delete('/{id}', [AdoptionApplicationController::class, 'destroy']);
+            Route::delete('/{application}', [AdoptionApplicationController::class, 'destroy']);
         });
        Route::middleware('role:SuperAdmin')->prefix('adoption')->group(function (){
 
             Route::get('/applications', [AdoptionApplicationController::class, 'index']);
-            Route::put('/{id}/approve', [AdoptionApplicationController::class, 'approve']);
-            Route::put('/{id}/reject', [AdoptionApplicationController::class, 'reject']);
-            Route::put('/applications/{id}/change-status',[AdoptionApplicationController::class, 'changeStatus']);
+            Route::put('/{application}/approve', [AdoptionApplicationController::class, 'approve']);
+            Route::put('/{application}/reject', [AdoptionApplicationController::class, 'reject']);
+            Route::patch('/applications/{application}/change-status',[AdoptionApplicationController::class, 'changeStatus']);
+            Route::patch('/{application}/complete',[AdoptionApplicationController::class,  'complete']);
+
             Route::get('/applications/{id}',[AdoptionApplicationController::class, 'show']);
+            Route::post('/{application}/complete', 
+    [AdoptionApplicationController::class, 'complete']
+);
 
         });
 

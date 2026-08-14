@@ -9,3 +9,6 @@ Artisan::command('inspire', function () {
 })->purpose('Display an inspiring quote');
 
 Schedule::command('sponsorships:cancel-overdue')->daily();
+
+Schedule::command('animals:release-expired-reservations')
+    ->hourly();

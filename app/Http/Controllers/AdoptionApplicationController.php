@@ -46,12 +46,22 @@ class AdoptionApplicationController extends Controller
         // 2. التحقق من حالة توفر الحيوان
         $animal = Animal::findOrFail($request->animal_id);
 
-        if ($animal->availability_status !== 'available') {
-            return response()->json([
-                'success' => false,
-                'message' => 'هذا الحيوان غير متاح للتبني حالياً.'
-            ], 422);
-        }
+        $alreadyApproved = AdoptionApplication::where('animal_id', $animal->id)
+            ->where('status', 'approved')
+            ->exists();
+
+            if ($alreadyApproved) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'هذا الحيوان محجوز حالياً بانتظار إتمام إجراءات التبني.'
+                ], 422);
+            }
+            if ($animal->availability_status !== 'available') {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'هذا الحيوان غير متاح للتبني حالياً.'
+                ], 422);
+            }
 
         // 3. تجميع تفاصيل الاستمارة في نص منسق لحقنه في الحقل الإجباري بقاعدة البيانات
         $otherPetsText = $request->has_other_pets ? $request->other_pets_info : 'لا يوجد';
@@ -181,6 +191,7 @@ class AdoptionApplicationController extends Controller
      */
     public function approve(Request $request, AdoptionApplication $application)
     {
+
         if ($application->status !== 'pending') {
             return response()->json([
                 'success' => false,
@@ -198,7 +209,11 @@ class AdoptionApplicationController extends Controller
             ]);
 
             $animal = $application->animal;
-            $animal->update(['availability_status' => 'adopted']);
+
+            $animal->update([
+                'availability_status' => 'reserved',
+                'reserved_until' => now()->addDays(5),
+            ]);
 
             // إشعار مقدم الطلب
             $template = NotificationTemplates::adoptionApproved(
@@ -231,16 +246,13 @@ class AdoptionApplicationController extends Controller
                     $template['body'],
                     $template['data']   );
 
-                // إنهاء الكفالة
-                $activeSponsorship->update([
-                    'status' => 'completed'
-                ]);
+
              }
             DB::commit();
 
             return response()->json([
                 'success' => true,
-                'message' => 'تم قبول طلب التبني بنجاح' ,
+                'message' => 'تم قبول طلب التبني وحجز الحيوان لمدة 5 أيام لإتمام إجراءات التبني',
                 'data'    => $application->load('animal')
             ]);
 
@@ -258,7 +270,7 @@ class AdoptionApplicationController extends Controller
     /**
      * رفض طلب التبني (للأدمن فقط)
      */
-  public function reject(Request $request, AdoptionApplication $application)
+    public function reject(Request $request, AdoptionApplication $application)
     {
         if ($application->status !== 'pending') {
             return response()->json([
@@ -269,8 +281,6 @@ class AdoptionApplicationController extends Controller
 
         $application->update([
             'status'      => 'rejected',
-            'approved_at' => now(),
-            'approved_by' => $request->user()->id,
         ]);
 
         $template = NotificationTemplates::adoptionRejected(
@@ -352,41 +362,108 @@ class AdoptionApplicationController extends Controller
     /**
      * تغيير حالة الطلب (للأدمن)
      */
-    public function changeStatus(Request $request, AdoptionApplication $application)
+   public function changeStatus(Request $request, AdoptionApplication $application)
     {
         $validator = Validator::make($request->all(), [
-            'status' => 'required|in:approved,rejected,in_trial'
+            'status' => 'required|in:approved,rejected'
         ]);
 
         if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors()
+            ], 422);
         }
 
         if ($application->status !== 'pending') {
-            return response()->json(['success' => false, 'message' => 'لا يمكن تغيير حالة طلب تمت معالجته'], 422);
+            return response()->json([
+                'success' => false,
+                'message' => 'لا يمكن تغيير حالة طلب تمت معالجته'
+            ], 422);
         }
 
-        $newStatus = $request->status;
-
-        if ($newStatus === 'approved') {
+        if ($request->status === 'approved') {
             return $this->approve($request, $application);
         }
 
+        return $this->reject($request, $application);
+    }
+
+  public function complete(Request $request, AdoptionApplication $application)
+{
+    if ($application->status !== 'approved') {
+        return response()->json([
+            'success' => false,
+            'message' => 'لا يمكن إتمام التبني لهذا الطلب في حالته الحالية.'
+        ], 422);
+    }
+
+    DB::beginTransaction();
+
+    try {
+        $animal = $application->animal;
+
+        // التأكد أن الحيوان ما زال محجوزاً لهذا الطلب
+        if ($animal->availability_status !== 'reserved') {
+            DB::rollBack();
+
+            return response()->json([
+                'success' => false,
+                'message' => 'هذا الحيوان لم يعد محجوزاً لهذا الطلب.'
+            ], 422);
+        }
+
+        // إتمام طلب التبني
         $application->update([
-            'status'       => $newStatus,
-            'approved_at'  => now(),
-            'approved_by'  => $request->user()->id,
+            'status' => 'completed',
         ]);
 
-        if ($newStatus === 'in_trial') {
-            $application->animal()->update(['availability_status' => 'under_trial']); // أو حسب تدوين الـ enum لديكِ
+        // تحويل الحيوان إلى متبنّى بشكل نهائي
+        $animal->update([
+            'availability_status' => 'adopted',
+            'reserved_until'      => null,
+        ]);
+
+        // إنهاء الكفالة إن وجدت
+        $activeSponsorship = Sponsorship::where('animal_id', $animal->id)
+            ->where('status', 'active')
+            ->first();
+
+        if ($activeSponsorship) {
+            $template = NotificationTemplates::sponsorshipCompleted(
+                $animal
+            );
+
+            SendNotificationEvent::dispatch(
+                $activeSponsorship->sponsor,
+                $template['title'],
+                $template['body'],
+                $template['data']
+            );
+
+            $activeSponsorship->update([
+                'status' => 'cancelled',
+            ]);
         }
+
+        DB::commit();
 
         return response()->json([
             'success' => true,
-            'message' => 'تم تغيير حالة الطلب بنجاح.',
-            'data'    => $application
-        ]);
-    }
+            'message' => 'تم إتمام عملية التبني بنجاح.',
+            'data'    => $application->load('animal')
+        ], 200);
 
+    } catch (\Exception $e) {
+        DB::rollBack();
+
+        Log::error('Failed to complete adoption: ' . $e->getMessage());
+
+        return response()->json([
+            'success' => false,
+            'message' => 'حدث خطأ أثناء إتمام عملية التبني.',
+            'error'   => $e->getMessage()
+        ], 500);
+    }
+}
 }
