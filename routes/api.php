@@ -265,7 +265,7 @@ Route::prefix('v1')->group(function () {
             // عرض البلاغات القريبة من المتطوع
             Route::get('/available', [RescueReportController::class, 'availableReports'])
                 ->middleware('role:volunteer');
-            Route::get('/users/{userId}/rescue-reports', [RescueReportController::class, 'getUserRescueReports']);
+            Route::get('/user/rescue-reports', [RescueReportController::class, 'getMyRescueReports']);
 
         });
         // تحديث موقع المتطوع أثناء المهمة

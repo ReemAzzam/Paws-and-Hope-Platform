@@ -6,6 +6,7 @@ use Illuminate\Database\Seeder;
 use App\Models\RescueReport;
 use App\Models\RescueReportImage;
 use App\Models\User;
+use App\Models\Volunteer;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\File;
 use Illuminate\Support\Arr;
@@ -19,8 +20,19 @@ class RescueReportSeeder extends Seeder
         RescueReport::truncate();
         DB::statement('SET FOREIGN_KEY_CHECKS=1;');
 
-        $userIds = User::pluck('id')->toArray();
-        
+        // جلب معرفات المستخدمين الذين يملكون دور regular_user
+        $regularUserIds = User::whereHas('roles', function ($query) {
+            $query->where('name', 'regular_user');
+        })->pluck('id')->toArray();
+
+        if (empty($regularUserIds)) {
+            $this->command->warn('لم يتم العثور على أي مستخدم بدور regular_user. الرجاء التأكد من تشغيل UserRoleSeeder أولاً.');
+            return;
+        }
+
+        // جلب معرفات المتطوعين لإسناد البلاغات المعالجة لهم
+        $volunteerIds = Volunteer::pluck('id')->toArray();
+
         $animalImageFiles = [
             'dog'      => ['dog1.jpg', 'dog2.jpg', 'dog_accident.jpg'],
             'cat'      => ['cat1.jpg', 'cat_fracture.jpg', 'cat3.jpg'],
@@ -34,10 +46,12 @@ class RescueReportSeeder extends Seeder
         $reportsData = $this->getFullReportsList();
 
         foreach ($reportsData as $data) {
-            $data['user_id'] = !empty($userIds) ? $userIds[array_rand($userIds)] : null;
+            // صاحب البلاغ يحدد من قائمة المستخدمين العاديين
+            $data['user_id'] = $regularUserIds[array_rand($regularUserIds)];
             
-            if ($data['status'] !== 'reported' && !empty($userIds)) {
-                $data['volunteer_id'] = $userIds[array_rand($userIds)];
+            // المتطوع يُسند فقط إذا لم تكن الحالة "reported"
+            if ($data['status'] !== 'reported' && !empty($volunteerIds)) {
+                $data['volunteer_id'] = $volunteerIds[array_rand($volunteerIds)];
             } else {
                 $data['volunteer_id'] = null;
             }
@@ -75,7 +89,7 @@ class RescueReportSeeder extends Seeder
             }
         }
 
-        $this->command->info('✅ 30 Rescue reports seeded successfully with folder structures!');
+        $this->command->info('✅ Rescue reports seeded successfully for regular users!');
     }
 
     private function getFullReportsList(): array

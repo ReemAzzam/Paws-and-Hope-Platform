@@ -14,50 +14,52 @@ class GeneralConsultationSeeder extends Seeder
      */
     public function run(): void
     {
-        // جلب المستخدمين العاديين (أول 5 مثلاً)
-        $users = User::limit(5)->get();
-        // جلب الأطباء البيطريين المعتمدين
-        $vets = Veterinarian::where('is_approved', true)->get();
+        // جلب المستخدمين الذين يملكون دور regular_user
+        $users = User::whereHas('roles', function ($query) {
+            $query->where('name', 'regular_user');
+        })->get();
 
         if ($users->isEmpty()) {
-            $this->command->info('Skip seeding consultations: No users found.');
+            $this->command->warn('Skip seeding consultations: No regular users found.');
             return;
         }
 
-        // قائمة بأسئلة شائعة وأجوبة بيطرية واقعية للاختبار
+        // جلب الأطباء البيطريين المعتمدين
+        $vets = Veterinarian::where('is_approved', true)->get();
+
+        // قائمة بأسئلة وأجوبة بيطرية
         $sampleConsultations = [
             [
-                'question' => 'قطتي تعاني من فقدان الشهية والخمول منذ يومين، ما السبب المحتمل وماذا يجب أن أفعل؟',
-                'answer'   => 'فقدان الشهية لدى القطط قد يكون مؤشراً على التهاب معوي أو ارتفاع في الحرارة. يُفضل تقييم درجات حرارتها وتقديم طعام رطب سهل الهضم، وإذا استمر الامتناع أكثر من 24 ساعة يجب فحصها بيطرياً.',
+                'question' => 'My cat has lost her appetite and has been lethargic for two days. What could be the cause and what should I do?',
+                'answer'   => 'Loss of appetite in cats can indicate a fever or gastrointestinal inflammation. Try offering soft, highly palatable food. If complete anorexia lasts more than 24 hours, a veterinary examination is required.',
                 'status'   => 'answered',
             ],
             [
-                'question' => 'ماهي التطعيمات الأساسية للكلاب في عمر 3 أشهر؟ وما هو جدول التكرار المناسب؟',
-                'answer'   => 'في هذا العمر، يحتاج الكلب للتطعيم الخماسي/الثماني (DHPP) للوقاية من البارفو والديدان، بالإضافة إلى تطعيم السعار (Rabies). يتم إعطاء جرعة تنشيطية بعد 3-4 أسابيع.',
+                'question' => 'What core vaccinations are required for a 3-month-old puppy, and what is the recommended schedule?',
+                'answer'   => 'At 3 months, puppies typically need the DHPP combination vaccine (distemper, hepatitis, parvovirus, parainfluenza) and a Rabies vaccine. A booster shot is usually given 3-4 weeks later.',
                 'status'   => 'answered',
             ],
             [
-                'question' => 'لاحظت وجود تساقط شعر كثيف حول أذني الأرنب مع وجود قشور بيضاء، هل هذه جرب أم فطريات؟',
-                'answer'   => 'هذه الأعراض ترجّح الإصابة بالطفيليات الخارجية مثل عث الأذن (Ear Mites) أو الفطريات. يُنصح بتنظيف المكان جيداً وعدم محاولة إزالة القشور بقوة، واستخدام قطرات مضادة للطفيليات تحت إشراف الطبيب.',
+                'question' => 'I noticed severe hair loss and white crusts around my rabbit\'s ears. Is this ear mites or a fungal infection?',
+                'answer'   => 'These symptoms strongly suggest ear mites (Psoroptes cuniculi) or ringworm. Avoid forcefully removing the crusts, keep the habitat clean, and apply anti-parasitic drops under veterinary guidance.',
                 'status'   => 'answered',
             ],
             [
-                'question' => 'عندي كلب صغير تناوَل قطعة شوكولاتة بالخطأ قبل ساعة، هل الشوكولاتة سامة للكلاب؟',
+                'question' => 'My small dog accidentally ate a piece of dark chocolate an hour ago. Is chocolate toxic to dogs?',
                 'answer'   => null,
                 'status'   => 'pending',
             ],
             [
-                'question' => 'ما هي أفضل طريقة لتنظيف أسنان القطط في المنزل للوقاية من التكلس ورائحة الفم الكريهة؟',
+                'question' => 'What is the best way to clean a cat\'s teeth at home to prevent tartar buildup and bad breath?',
                 'answer'   => null,
                 'status'   => 'pending',
             ],
         ];
 
         foreach ($sampleConsultations as $index => $data) {
-            // اختيار مستخدم بشكل تتابعي
+            // ربط الاستشارة بمستخدم عادي بشكل تتابعي
             $user = $users[$index % $users->count()];
 
-            // إذا كانت الاستشارة مجابة وكان هناك أطباء، نربطها بالطبيب
             $vetId = null;
             if ($data['status'] === 'answered' && $vets->isNotEmpty()) {
                 $vetId = $vets->random()->id;
@@ -65,7 +67,7 @@ class GeneralConsultationSeeder extends Seeder
 
             GeneralConsultation::create([
                 'user_id'         => $user->id,
-                'veterinarian_id' => $vetId, // قد تكون null أو معينة لطبيب
+                'veterinarian_id' => $vetId,
                 'question'        => $data['question'],
                 'answer'          => $data['answer'],
                 'status'          => $data['status'],
@@ -74,6 +76,6 @@ class GeneralConsultationSeeder extends Seeder
             ]);
         }
 
-        $this->command->info('GeneralConsultationSeeder executed successfully!');
+        $this->command->info('✅ GeneralConsultationSeeder executed successfully!');
     }
 }
