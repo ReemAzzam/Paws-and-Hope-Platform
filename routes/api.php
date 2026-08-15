@@ -190,19 +190,25 @@ Route::prefix('v1')->group(function () {
         Route::middleware(['role:SuperAdmin'])->prefix('admin')->group(function () {
 
             // ======== Verification Counts ========
-            Route::get('/approved-counts', [AdminVerificationController::class, 'getApprovedCounts']);
+            Route::get('/staff-counts', [AdminVerificationController::class, 'getStaffCounts']);
 
             // ======== Veterinarian Verification ========
             Route::patch('/veterinarians/{id}/approve', [AdminVerificationController::class, 'approveVeterinarian']);
             Route::patch('veterinarians/{id}/reject',[AdminVerificationController::class, 'rejectVeterinarian']);
             Route::patch('/veterinarians/{id}/block',   [AdminVerificationController::class, 'blockVeterinarian']);
             Route::patch('/veternians/{id}/unblock',[AdminVerificationController::class,'unblockVeterinarian']);
+            Route::get('/veterinarians/approved', [AdminVerificationController::class, 'getApprovedVeterinarians']);
+            Route::get('/veterinarians/pending', [AdminVerificationController::class, 'getPendingVeterinians']);
+            Route::get('/veterinarians/filter', [AdminVerificationController::class, 'filterVeterinarians']);
 
             // ======== Volunteer Verification ========
             Route::patch('/volunteers/{id}/approve', [AdminVerificationController::class, 'approveVolunteer']);
             Route::patch('/volunteers/{id}/reject', [AdminVerificationController::class, 'rejectVolunteer']);
             Route::patch('/volunteers/{id}/block',   [AdminVerificationController::class, 'blockVolunteer']);
             Route::patch('/volunteers/{id}/unblock',[AdminVerificationController::class,'unblockVolunteer']);
+            Route::get('/volunteers/approved', [AdminVerificationController::class, 'getApprovedVolunteers']);
+            Route::get('/volunteers/pending', [AdminVerificationController::class, 'getPendingvolunteers']);
+            Route::get('/admin/volunteers/filter', [AdminVerificationController::class, 'filterVolunteers']);
 
             //========== Admin Dashboard ==============
             Route::get('/reg-users', [AdminVerificationController::class, 'getRegularUsers']);
