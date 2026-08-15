@@ -48,7 +48,7 @@ class RescueReportSeeder extends Seeder
         foreach ($reportsData as $data) {
             // صاحب البلاغ يحدد من قائمة المستخدمين العاديين
             $data['user_id'] = $regularUserIds[array_rand($regularUserIds)];
-            
+
             // المتطوع يُسند فقط إذا لم تكن الحالة "reported"
             if ($data['status'] !== 'reported' && !empty($volunteerIds)) {
                 $data['volunteer_id'] = $volunteerIds[array_rand($volunteerIds)];

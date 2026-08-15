@@ -194,11 +194,19 @@ Route::prefix('v1')->group(function () {
 
             // ======== Veterinarian Verification ========
             Route::patch('/veterinarians/{id}/approve', [AdminVerificationController::class, 'approveVeterinarian']);
+            Route::patch('veterinarians/{id}/reject',[AdminVerificationController::class, 'rejectVeterinarian']);
             Route::patch('/veterinarians/{id}/block',   [AdminVerificationController::class, 'blockVeterinarian']);
+            Route::patch('/veternians/{id}/unblock',[AdminVerificationController::class,'unblockVeterinarian']);
 
             // ======== Volunteer Verification ========
             Route::patch('/volunteers/{id}/approve', [AdminVerificationController::class, 'approveVolunteer']);
+            Route::patch('/volunteers/{id}/reject', [AdminVerificationController::class, 'rejectVolunteer']);
             Route::patch('/volunteers/{id}/block',   [AdminVerificationController::class, 'blockVolunteer']);
+            Route::patch('/volunteers/{id}/unblock',[AdminVerificationController::class,'unblockVolunteer']);
+
+            //========== Admin Dashboard ==============
+            Route::get('/reg-users', [AdminVerificationController::class, 'getRegularUsers']);
+            Route::get('/Vets', [AdminVerificationController::class, 'getVeterinarians']);
 
             // ======== Donation Management ========
             Route::get('/donations/pending', [DonationController::class, 'getPendingDonations']);
