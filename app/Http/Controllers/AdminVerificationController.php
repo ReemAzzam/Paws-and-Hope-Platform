@@ -341,53 +341,58 @@ class AdminVerificationController extends Controller
         ], 200);
     }
 
-    
-    public function getPendingVeterinarians()
+
+    public function getPendingVeterinarians(Request $request)
     {
+        $perPage = (int) $request->input('per_page', 12);
+
         $veterinarians = Veterinarian::with([
-            'user:id,full_name,email,phone_number,country_code,governorate,photo,account_status',
-        ])
-        ->where('is_approved', false)
-        ->whereHas('user', function ($query) {
-            $query->where('account_status', 'pending');
-        })
-        ->latest()
-        ->get();
+                'user:id,full_name,email,phone_number,country_code,governorate,photo,account_status',
+            ])
+            ->where('is_approved', false)
+            ->whereHas('user', function ($query) {
+                $query->where('account_status', 'pending');
+            })
+            ->latest()
+            ->paginate($perPage);
+
+        $data = collect($veterinarians->items())->map(function ($vet) {
+            return [
+                'id' => $vet->id,
+                'user_id' => $vet->user?->id,
+                'photo' => $vet->user?->photo
+                    ? asset('storage/' . ltrim($vet->user->photo, '/'))
+                    : null,
+                'full_name' => $vet->user?->full_name,
+                'email' => $vet->user?->email,
+                'phone_number' => $vet->user?->phone_number,
+                'country_code' => $vet->user?->country_code,
+                'governorate' => $vet->user?->governorate,
+                'specialization' => $vet->specialization,
+                'clinic_location' => $vet->clinic_location,
+                'license_number' => $vet->license_number,
+                'working_hours' => $vet->working_hours,
+                'experience_years' => $vet->experience_years,
+                'about' => $vet->about,
+                'bio' => $vet->bio,
+                'is_approved' => $vet->is_approved,
+                'approved_at' => $vet->approved_at,
+                'account_status' => $vet->user?->account_status,
+            ];
+        })->values();
 
         return response()->json([
             'success' => true,
-            'count'   => $veterinarians->count(),
-            'data'    => $veterinarians->map(function ($vet) {
-                return [
-                    'id' => $vet->id,
-
-                    'user_id' => $vet->user?->id,
-
-                    'photo' => $vet->user?->photo
-                        ? asset('storage/' . $vet->user->photo)
-                        : null,
-
-                    'full_name' => $vet->user?->full_name,
-                    'email' => $vet->user?->email,
-                    'phone_number' => $vet->user?->phone_number,
-                    'country_code' => $vet->user?->country_code,
-                    'governorate' => $vet->user?->governorate,
-
-                    'specialization' => $vet->specialization,
-                    'clinic_location' => $vet->clinic_location,
-                    'license_number' => $vet->license_number,
-                    'working_hours' => $vet->working_hours,
-                    'experience_years' => $vet->experience_years,
-                    'about' => $vet->about,
-                    'bio' => $vet->bio,
-
-                    'is_approved' => $vet->is_approved,
-                    'approved_at' => $vet->approved_at,
-                ];
-            })->values(),
-        ], 200);
+            'count'   => $veterinarians->total(),
+            'data'    => $data,
+            'meta'    => [
+                'current_page' => $veterinarians->currentPage(),
+                'last_page'    => $veterinarians->lastPage(),
+                'per_page'     => $veterinarians->perPage(),
+                'total'        => $veterinarians->total(),
+            ],
+        ]);
     }
-
 
     public function getApprovedVolunteers()
     {
@@ -489,6 +494,8 @@ class AdminVerificationController extends Controller
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:all,pending,approved,rejected,blocked',
             'search' => 'nullable|string|max:255',
+            'per_page' => 'nullable|integer|min:1|max:50',
+            'page'     => 'nullable|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -540,12 +547,6 @@ class AdminVerificationController extends Controller
         break;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Search by name or email
-        |--------------------------------------------------------------------------
-        */
-
         if ($request->filled('search')) {
             $search = $request->search;
 
@@ -554,41 +555,44 @@ class AdminVerificationController extends Controller
                 ->orWhere('email', 'like', "%{$search}%");
             });
         }
+            $perPage = (int) $request->input('per_page', 12);
 
-        $veterinarians = $query->latest()->get();
+            $veterinarians = $query->latest()->paginate($perPage);
 
-        return response()->json([
-            'success' => true,
-            'count'   => $veterinarians->count(),
-            'data'    => $veterinarians->map(function ($vet) {
-
+            $data = collect($veterinarians->items())->map(function ($vet) {
                 return [
-                    'id' => $vet->id,
-                    'user_id' => $vet->user?->id,
-
-                    'photo' => $vet->user?->photo
-                        ? asset('storage/' . $vet->user->photo)
+                    'id'               => $vet->id,
+                    'user_id'          => $vet->user?->id,
+                    'photo'            => $vet->user?->photo
+                        ? asset('storage/' . ltrim($vet->user->photo, '/'))
                         : null,
-
-                    'full_name' => $vet->user?->full_name,
-                    'email' => $vet->user?->email,
-                    'phone_number' => $vet->user?->phone_number,
-                    'country_code' => $vet->user?->country_code,
-                    'governorate' => $vet->user?->governorate,
-
-                    'specialization' => $vet->specialization,
-                    'clinic_location' => $vet->clinic_location,
-                    'license_number' => $vet->license_number,
-                    'working_hours' => $vet->working_hours,
+                    'full_name'        => $vet->user?->full_name,
+                    'email'            => $vet->user?->email,
+                    'phone_number'     => $vet->user?->phone_number,
+                    'country_code'     => $vet->user?->country_code,
+                    'governorate'      => $vet->user?->governorate,
+                    'specialization'   => $vet->specialization,
+                    'clinic_location'  => $vet->clinic_location,
+                    'license_number'   => $vet->license_number,
+                    'working_hours'    => $vet->working_hours,
                     'experience_years' => $vet->experience_years,
-                    'about' => $vet->about,
-                    'bio' => $vet->bio,
-
+                    'about'            => $vet->about,
+                    'bio'              => $vet->bio,
                     'is_approved' => $vet->is_approved,
                     'approved_at' => $vet->approved_at,
                     'account_status' => $vet->user?->account_status,
                 ];
-            })->values(),
+            })->values();
+            return response()->json([
+            'success' => true,
+            'count'   => $veterinarians->total(),
+            'data'    => $data,
+            'meta'    => [
+                'current_page' => $veterinarians->currentPage(),
+                'last_page'    => $veterinarians->lastPage(),
+                'per_page'     => $veterinarians->perPage(),
+                'total'        => $veterinarians->total(),
+            ],
         ], 200);
     }
 
@@ -598,6 +602,8 @@ class AdminVerificationController extends Controller
         $validator = Validator::make($request->all(), [
             'status' => 'required|in:all,pending,approved,rejected,blocked',
             'search' => 'nullable|string|max:255',
+            'per_page' => 'nullable|integer|min:1|max:50',
+            'page'     => 'nullable|integer|min:1',
         ]);
 
         if ($validator->fails()) {
@@ -610,12 +616,6 @@ class AdminVerificationController extends Controller
         $query = Volunteer::with([
             'user:id,full_name,email,phone_number,country_code,governorate,photo,account_status',
         ]);
-
-        /*
-        |--------------------------------------------------------------------------
-        | Status filter
-        |--------------------------------------------------------------------------
-        */
 
         switch ($request->status) {
 
@@ -649,12 +649,6 @@ class AdminVerificationController extends Controller
         break;
         }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Search by name or email
-        |--------------------------------------------------------------------------
-        */
-
         if ($request->filled('search')) {
             $search = $request->search;
 
@@ -664,45 +658,50 @@ class AdminVerificationController extends Controller
             });
         }
 
-        $volunteers = $query->latest()->get();
+            $perPage = (int) $request->input('per_page', 12);
 
-        return response()->json([
-            'success' => true,
-            'count'   => $volunteers->count(),
-            'data'    => $volunteers->map(function ($volunteer) {
+            $volunteers = $query->latest()->paginate($perPage);
 
+            $data = collect($volunteers->items())->map(function ($volunteer) {
                 return [
-                    'id' => $volunteer->id,
-                    'user_id' => $volunteer->user?->id,
-
-                    'photo' => $volunteer->user?->photo
-                        ? asset('storage/' . $volunteer->user->photo)
+                    'id'                => $volunteer->id,
+                    'user_id'           => $volunteer->user?->id,
+                    'photo'             => $volunteer->user?->photo
+                        ? asset('storage/' . ltrim($volunteer->user->photo, '/'))
                         : null,
-
-                    'full_name' => $volunteer->user?->full_name,
-                    'email' => $volunteer->user?->email,
-                    'phone_number' => $volunteer->user?->phone_number,
-                    'country_code' => $volunteer->user?->country_code,
-                    'governorate' => $volunteer->user?->governorate,
-
-                    'detailed_address' => $volunteer->detailed_address,
-                    'age' => $volunteer->age,
-                    'vol_type' => $volunteer->vol_type,
-                    'experience_level' => $volunteer->experience_level,
-                    'equipment' => $volunteer->equipment,
-
-                    'current_latitude' => $volunteer->current_latitude,
+                    'full_name'         => $volunteer->user?->full_name,
+                    'email'             => $volunteer->user?->email,
+                    'phone_number'      => $volunteer->user?->phone_number,
+                    'country_code'      => $volunteer->user?->country_code,
+                    'governorate'       => $volunteer->user?->governorate,
+                    'detailed_address'  => $volunteer->detailed_address,
+                    'age'               => $volunteer->age,
+                    'vol_type'          => $volunteer->vol_type,
+                    'experience_level'  => $volunteer->experience_level,
+                    'equipment'         => $volunteer->equipment,
+                    'current_latitude'  => $volunteer->current_latitude,
                     'current_longitude' => $volunteer->current_longitude,
-
                     'is_approved' => $volunteer->is_approved,
                     'approved_at' => $volunteer->approved_at,
                     'account_status' => $volunteer->user?->account_status,
                 ];
-            })->values(),
+            })->values();
+          return response()->json([
+            'success' => true,
+            'count'   => $volunteers->total(),
+            'data'    => $data,
+            'meta'    => [
+                'current_page' => $volunteers->currentPage(),
+                'last_page'    => $volunteers->lastPage(),
+                'per_page'     => $volunteers->perPage(),
+                'total'        => $volunteers->total(),
+            ],
         ], 200);
+
     }
     //-------------------------------------------------------------
     //the rest of admin dashboard
+    //------------------------------------------------
     public function getRegularUsers()
     {
         $users = User::role('regular_user')

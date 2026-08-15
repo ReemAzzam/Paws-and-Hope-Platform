@@ -208,7 +208,7 @@ Route::prefix('v1')->group(function () {
             Route::patch('/veterinarians/{id}/block',   [AdminVerificationController::class, 'blockVeterinarian']);
             Route::patch('/veternians/{id}/unblock',[AdminVerificationController::class,'unblockVeterinarian']);
             Route::get('/veterinarians/approved', [AdminVerificationController::class, 'getApprovedVeterinarians']);
-            Route::get('/veterinarians/pending', [AdminVerificationController::class, 'getPendingVeterinians']);
+            Route::get('/veterinarians/pending', [AdminVerificationController::class, 'getPendingveterinarians']);
             Route::get('/veterinarians/filter', [AdminVerificationController::class, 'filterVeterinarians']);
 
             // ======== Volunteer Verification ========
