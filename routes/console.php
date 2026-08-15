@@ -12,3 +12,5 @@ Schedule::command('sponsorships:cancel-overdue')->daily();
 
 Schedule::command('animals:release-expired-reservations')
     ->hourly();
+
+Schedule::command('sponsorships:auto-cancel-expired')->daily();

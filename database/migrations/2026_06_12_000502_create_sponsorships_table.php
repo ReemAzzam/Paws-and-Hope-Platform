@@ -19,6 +19,7 @@ return new class extends Migration {
             
             $table->date('start_date')->nullable();
             $table->date('next_payment_due')->nullable(); 
+            $table->date('payment_due_date')->nullable();
             $table->text('notes')->nullable();
             $table->timestamps();
         });

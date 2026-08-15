@@ -17,6 +17,7 @@ class Sponsorship extends Model
         'status',
         'start_date',
         'next_payment_due',
+        'payment_due_date',
         'notes'
     ];
 

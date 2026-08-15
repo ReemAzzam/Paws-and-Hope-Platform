@@ -19,28 +19,13 @@ use App\Support\NotificationTemplates;
 
 class SponsorshipController extends Controller
 {
-    public function requestSponsorship(Request $request)
+public function requestSponsorship(Request $request)
     {
-        $allowedPaymentMethods = [
-            'al_haram',
-            'al_fouad',
-            'syriatel_cash',
-            'mtn_cash',
-            'western_union',
-            'paypal',
-            'gofundme',
-            'hand_delivery',
-            'external'
-        ];
-
         $validator = Validator::make($request->all(), [
-            'animal_id'          => 'required|exists:animals,id',
-            'monthly_amount'     => 'required|numeric|min:0',
-            'currency'           => 'required|in:SYP,USD',
-            'payment_method'     => ['required', 'string', Rule::in($allowedPaymentMethods)],
-            'transaction_number' => 'required|string|unique:sponsorship_payments,transaction_number|digits:12',
-            'receipt_image'      => 'required|image|mimes:jpeg,png,jpg|max:4096',
-            'notes'              => 'nullable|string',
+            'animal_id'      => 'required|exists:animals,id',
+            'monthly_amount' => 'required|numeric|min:0',
+            'currency'       => 'required|in:SYP,USD',
+            'notes'          => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
@@ -48,145 +33,67 @@ class SponsorshipController extends Controller
         }
 
         $animal = Animal::find($request->animal_id);
-        if ($animal->sponsorships()->where('status', 'active')->exists()) {
-            return response()->json(['message' => 'This animal is currently sponsored by another individual.'], 400);
+
+        if ($animal->availability_status === 'adopted') {
+            return response()->json(['message' => 'This animal has already been adopted.'], 400);
+        }
+
+        if ($animal->sponsorships()->whereIn('status', ['active', 'pending'])->exists()) {
+            return response()->json(['message' => 'This animal is currently sponsored or has a pending sponsorship request.'], 400);
         }
 
         DB::beginTransaction();
         try {
             $sponsorship = Sponsorship::create([
-                'user_id'        => Auth::id(),
-                'animal_id'      => $request->animal_id,
-                'monthly_amount' => $request->monthly_amount,
-                'currency'       => $request->currency,
-                'status'         => 'pending',
-                'notes'          => $request->notes,
+                'user_id'          => Auth::id(),
+                'animal_id'        => $request->animal_id,
+                'monthly_amount'   => $request->monthly_amount,
+                'currency'         => $request->currency,
+                'status'           => 'pending',
+                'payment_due_date' => Carbon::now()->addDays(5),
+                'notes'            => $request->notes,
             ]);
 
-            $receiptPath = $request->file('receipt_image')->store('receipts', 'public');
-
-            SponsorshipPayment::create([
-                'sponsorship_id'      => $sponsorship->id,
-                'amount'              => $request->monthly_amount,
-                'currency'            => $request->currency,
-                'payment_method'      => $request->payment_method,
-                'transaction_number'  => $request->transaction_number,
-                'receipt_image_url'   => $receiptPath,
-                'verification_status' => 'pending',
-            ]);
-            $admins = User::role(['admin', 'SuperAdmin'])->get();
+            // إرسال إشعار للأدمن
+           /* $admins = User::whereHas('roles', function ($query) {
+                $query->whereIn('name', ['admin', 'SuperAdmin']);
+            })->get();
 
             foreach ($admins as $admin) {
-                $notification = NotificationTemplates::newSponsorshipRequest(
-                    Auth::user()->full_name,
-                    $animal->name
-                );
-
-                event(new SendNotificationEvent(
-                    $admin,
-                    $notification['title'],
-                    $notification['body'],
-                    $notification['data']
-                ));
-            }
+                $notification = NotificationTemplates::newSponsorshipRequest(Auth::user()->full_name, $animal->name);
+                event(new SendNotificationEvent($admin, $notification['title'], $notification['body'], $notification['data']));
+            }*/
 
             DB::commit();
 
             return response()->json([
-                'message'     => 'Sponsorship request submitted successfully and is currently under administrative review.',
-                'sponsorship' => $sponsorship->load('payments')
+                'message'     => 'Sponsorship request created. You have 5 days to complete the first payment before it expires.',
+                'sponsorship' => $sponsorship
             ], 201);
 
         } catch (\Exception $e) {
             DB::rollBack();
-            return response()->json(['message' => 'An error occurred while processing the request.', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'An error occurred.', 'error' => $e->getMessage()], 500);
         }
     }
 
-    public function verifyPayment(Request $request, $paymentId)
-    {
-        if (!Auth::user()->hasRole('admin', 'api') && !Auth::user()->hasRole('SuperAdmin', 'api')) {
-            return response()->json(['message' => 'You are not authorized to perform this action.'], 403);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'status'           => 'required|in:verified,rejected',
-            'rejection_reason' => 'required_if:status,rejected|string|nullable',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        $payment = SponsorshipPayment::findOrFail($paymentId);
-        $sponsorship = $payment->sponsorship;
-
-        if ($payment->verification_status !== 'pending') {
-            return response()->json(['message' => 'This payment has already been processed.'], 400);
-        }
-
-        DB::beginTransaction();
-        try {
-            if ($request->status === 'verified') {
-                $payment->update([
-                    'verification_status' => 'verified',
-                    'verified_by'         => Auth::id(),
-                    'verified_at'         => now(),
-                ]);
-
-                $sponsorship->update([
-                    'status'           => 'active',
-                    'start_date'       => now()->toDateString(),
-                    'next_payment_due' => Carbon::now()->addMonth()->toDateString(),
-                ]);
-
-            } else {
-                $payment->update([
-                    'verification_status' => 'rejected',
-                    'rejection_reason'    => $request->rejection_reason,
-                ]);
-
-                $sponsorship->update([
-                    'status' => 'cancelled'
-                ]);
-            }
-
-            DB::commit();
-            return response()->json([
-                'message'     => $request->status === 'verified' ? 'Sponsorship has been successfully activated for the animal.' : 'Sponsorship receipt has been successfully rejected.',
-                'sponsorship' => $sponsorship->load('payments')
-            ], 200);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'An error occurred while processing the operation.', 'error' => $e->getMessage()], 500);
-        }
-    }
-
+    // 2. رفع إيصال دفع
     public function renewPayment(Request $request, $sponsorshipId)
     {
         $sponsorship = Sponsorship::findOrFail($sponsorshipId);
 
         if ($sponsorship->user_id !== Auth::id()) {
-            return response()->json(['message' => 'You are not authorized to renew this sponsorship.'], 403);
+            return response()->json(['message' => 'Unauthorized.'], 403);
         }
 
-        $allowedPaymentMethods = [
-            'al_haram',
-            'al_fouad',
-            'syriatel_cash',
-            'mtn_cash',
-            'western_union',
-            'paypal',
-            'gofundme',
-            'hand_delivery',
-            'external'
-        ];
+        if (in_array($sponsorship->status, ['cancelled', 'paused'])) {
+            return response()->json(['message' => 'Cannot upload payment for a cancelled or paused sponsorship.'], 400);
+        }
 
         $validator = Validator::make($request->all(), [
             'amount'             => 'required|numeric|min:0',
             'currency'           => 'required|in:SYP,USD',
-            'payment_method'     => ['required', 'string', Rule::in($allowedPaymentMethods)], // 🟢 التحقق من الطرق المحددة
+            'payment_method'     => 'required|string',
             'transaction_number' => 'required|string|unique:sponsorship_payments,transaction_number',
             'receipt_image'      => 'required|image|mimes:jpeg,png,jpg,avif|max:4096',
         ]);
@@ -208,39 +115,87 @@ class SponsorshipController extends Controller
                 'verification_status' => 'pending',
             ]);
 
-            $animal = $sponsorship->animal;
-           $admins = User::whereHas('roles', function ($query) {
-    $query->whereIn('name', ['admin', 'SuperAdmin']);
-})->get();
-            foreach ($admins as $admin) {
-                $notification = NotificationTemplates::sponsorshipRenewal(
-                    Auth::user()->full_name,
-                    $animal->name
-                );
-
-                event(new SendNotificationEvent(
-                    $admin,
-                    $notification['title'],
-                    $notification['body'],
-                    $notification['data']
-                ));
-            }
-
             return response()->json([
-                'message' => 'Renewal receipt uploaded successfully and is awaiting admin approval to extend the sponsorship.',
+                'message' => 'Payment receipt uploaded successfully.',
                 'payment' => $payment
             ], 201);
 
         } catch (\Exception $e) {
-            return response()->json(['message' => 'An error occurred while processing the renewal payment.', 'error' => $e->getMessage()], 500);
+            return response()->json(['message' => 'An error occurred.', 'error' => $e->getMessage()], 500);
         }
     }
 
- 
-        public function mySponsorships()
+    // 3. توقيف الكفالة يدوياً من الكفيل
+    public function pauseSponsorship($id)
+    {
+        $sponsorship = Sponsorship::findOrFail($id);
+
+        if ($sponsorship->user_id !== Auth::id()) {
+            return response()->json(['message' => 'Unauthorized.'], 403);
+        }
+
+        if ($sponsorship->status === 'paused') {
+            return response()->json(['message' => 'Sponsorship is already paused.'], 400);
+        }
+
+        if ($sponsorship->status === 'cancelled') {
+            return response()->json(['message' => 'Cannot pause a cancelled sponsorship.'], 400);
+        }
+
+        $sponsorship->update(['status' => 'paused']);
+
+        return response()->json(['success' => true, 'message' => 'Sponsorship paused successfully.'], 200);
+    }
+
+    // 4. مراجعة الدفعة من الأدمن
+    public function verifyPayment(Request $request, $paymentId)
+    {
+        $validator = Validator::make($request->all(), [
+            'status'           => 'required|in:verified,rejected',
+            'rejection_reason' => 'required_if:status,rejected|string|nullable',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        $payment = SponsorshipPayment::findOrFail($paymentId);
+        $sponsorship = $payment->sponsorship;
+
+        DB::beginTransaction();
+        try {
+            if ($request->status === 'verified') {
+                $payment->update([
+                    'verification_status' => 'verified',
+                    'verified_by'         => Auth::id(),
+                    'verified_at'         => now(),
+                ]);
+
+                $sponsorship->update([
+                    'status'           => 'active',
+                    'start_date'       => $sponsorship->start_date ?? now()->toDateString(),
+                    'next_payment_due' => Carbon::now()->addMonth()->toDateString(),
+                    'payment_due_date' => null,
+                ]);
+            } else {
+                $payment->update([
+                    'verification_status' => 'rejected',
+                    'rejection_reason'    => $request->rejection_reason,
+                ]);
+            }
+
+            DB::commit();
+            return response()->json(['message' => 'Payment status updated successfully.'], 200);
+
+        } catch (\Exception $e) {
+            DB::rollBack();
+            return response()->json(['message' => 'An error occurred.', 'error' => $e->getMessage()], 500);
+        }
+    }
+
+    public function mySponsorships()
     {
         $sponsorships = Sponsorship::where('user_id', Auth::id())
-            ->where('status', 'active')
             ->with([
                 'animal.photos',
                 'animal.updates' => function ($query) {
@@ -250,27 +205,26 @@ class SponsorshipController extends Controller
                     $query->latest();
                 }
             ])
+            ->latest()
             ->get();
 
         $sponsorships->each(function ($sponsorship) {
+            if ($sponsorship->animal && $sponsorship->animal->availability_status === 'adopted') {
+                $sponsorship->adoption_message = "خبر سعيد! الحيوان " . $sponsorship->animal->name . " الذي كنت تكفله تم تبنيه بنجاح ووجد عائلة دافئة تحبه. شكرًا لك على حبك ودعمك الجميل خلال رحلته!";
+            } else {
+                $sponsorship->adoption_message = null;
+            }
 
-            // AnimalPhoto model handles the animal photo URL
-            // through the "url" accessor.
-
-            // Normalize payment receipt URLs
-            $sponsorship->payments->each(function ($payment) {
-
-                if (!$payment->receipt_image_url) {
-                    return;
-                }
-
-                if (!filter_var($payment->receipt_image_url, FILTER_VALIDATE_URL)) {
-                    $path = ltrim($payment->receipt_image_url, '/');
-                    $path = preg_replace('#^storage/#', '', $path);
-
-                    $payment->receipt_image_url = asset('storage/' . $path);
-                }
-            });
+            // ضبط مسارات الإيصالات
+            if ($sponsorship->payments) {
+                $sponsorship->payments->each(function ($payment) {
+                    if ($payment->receipt_image_url && !filter_var($payment->receipt_image_url, FILTER_VALIDATE_URL)) {
+                        $path = ltrim($payment->receipt_image_url, '/');
+                        $path = preg_replace('#^storage/#', '', $path);
+                        $payment->receipt_image_url = asset('storage/' . $path);
+                    }
+                });
+            }
         });
 
         return response()->json([
@@ -279,62 +233,7 @@ class SponsorshipController extends Controller
             'sponsorships' => $sponsorships
         ], 200);
     }
-    //     public function mySponsorships()
-    // {
-    //     $sponsorships = Sponsorship::where('user_id', Auth::id())
-    //         ->where('status', 'active')
-    //         ->with([
-    //             'animal.photos',
-    //             'animal.updates' => function ($query) {
-    //                 $query->latest();
-    //             },
-    //             'payments' => function ($query) {
-    //                 $query->latest();
-    //             }
-    //         ])
-    //         ->get();
 
-    //     $sponsorships->each(function ($sponsorship) {
-
-    //         if ($sponsorship->animal && $sponsorship->animal->photos) {
-
-    //             $sponsorship->animal->photos->each(function ($photo) {
-
-    //                 if ($photo->photo_url) {
-    //                     $photo->photo_url = asset('storage/' . ltrim($photo->photo_url, '/'));
-    //                 }
-
-    //             });
-
-    //         }
-
-    //         // إذا كنت تريد أيضاً تحويل صور إيصالات الدفع إلى URL كامل
-    //         if ($sponsorship->payments) {
-
-    //             $sponsorship->payments->each(function ($payment) {
-
-    //                 if ($payment->receipt_image_url) {
-
-    //                     // إذا كانت القيمة أصلاً URL كامل لا نضيف storage مرة ثانية
-    //                     if (!filter_var($payment->receipt_image_url, FILTER_VALIDATE_URL)) {
-    //                         $payment->receipt_image_url = asset(
-    //                             'storage/' . ltrim($payment->receipt_image_url, '/')
-    //                         );
-    //                     }
-
-    //                 }
-
-    //             });
-
-    //         }
-    //     });
-
-    //     return response()->json([
-    //         'success'      => true,
-    //         'message'      => 'Sponsorship dashboard data retrieved successfully.',
-    //         'sponsorships' => $sponsorships
-    //     ], 200);
-    // }
 
     public function availableAnimalsForSponsorship(Request $request)
     {

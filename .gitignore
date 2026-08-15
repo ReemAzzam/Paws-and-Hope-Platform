@@ -2,10 +2,7 @@
 /node_modules
 /public/build
 /public/hot
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
+/public/storage
 /storage/*.key
 /storage/pail
 /vendor

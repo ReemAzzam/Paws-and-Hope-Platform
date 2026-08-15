@@ -87,7 +87,7 @@ Route::prefix('v1')->group(function () {
     });
 
    // Available Animals For Sponsorship
-        Route::get('/available-animals', [SponsorshipController::class, 'availableAnimalsForSponsorship']);
+        Route::get('/sponsorships/available-animals', [SponsorshipController::class, 'availableAnimalsForSponsorship']);
 
     // ================Community==========
     Route::prefix('community')->group(function () {
@@ -179,6 +179,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/request', [SponsorshipController::class, 'requestSponsorship']);
             // تجديد دفعة الرعاية
             Route::post('/{id}/renew', [SponsorshipController::class, 'renewPayment']);
+            Route::post('/{id}/pause', [SponsorshipController::class, 'pauseSponsorship']);
             Route::get('/my', [SponsorshipController::class, 'mySponsorships']);
         });
 
@@ -210,7 +211,7 @@ Route::prefix('v1')->group(function () {
                 Route::get('/sponsorships/search', [SponsorshipController::class, 'search']);
                 Route::get('/sponsorships', [SponsorshipController::class, 'index']);
                 Route::get('/sponsorships/{id}', [SponsorshipController::class, 'show']);
-                Route::get('/sponsorships/search', [SponsorshipController::class, 'search']);
+
                 // التحقق من دفعة رعاية
                 Route::patch('/sponsorships/payments/{paymentId}/verify', [SponsorshipController::class, 'verifyPayment']);
         });
