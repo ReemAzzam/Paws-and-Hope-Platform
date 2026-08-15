@@ -483,4 +483,120 @@ class ProfileController extends Controller
             'message' => 'Media asset dropped successfully.'
         ]);
     }
+    --------------------------------------------------------
+    //============ ADMIN PROFILE ==============
+
+    /**
+ * عرض بروفايل الأدمن
+ * GET /api/v1/admin/profile
+ */
+    public function showAdminProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->hasRole('SuperAdmin') && !$user->hasRole('admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Admins only.'
+            ], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'personal_information' => [
+                    'id'         => $user->id,
+                    'full_name'  => $user->full_name,
+                    'email'      => $user->email,
+                    'phone'      => trim(($user->country_code ?? '') . ' ' . ($user->phone_number ?? '')),
+                    'country_code'=> $user->country_code,
+                    'phone_number'=> $user->phone_number,
+                    'role'       => $user->getRoleNames()->first() ?? 'SuperAdmin',
+                    'department' => 'Management', // ثابت مؤقتًا لأن ما في عمود
+                    'joined_on'  => optional($user->created_at)->format('d F Y'),
+                    'last_login' => null, // يحتاج عمود last_login_at
+                    'location'   => $user->governorate,
+                    'photo'      => $user->photo
+                        ? asset('storage/' . ltrim($user->photo, '/'))
+                        : null,
+                ],
+                'security_access' => [
+                    'two_factor_enabled' => (bool) $user->two_factor_enabled,
+                    'account_status'     => $user->account_status,
+                    'active_sessions'    => $user->tokens()->count(),
+                ],
+            ]
+        ]);
+    }
+
+    /**
+     * تعديل معلومات الأدمن
+     * POST /api/v1/admin/profile  (أو PUT)
+     * form-data إذا في صورة
+     */
+    public function updateAdminProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->hasRole('SuperAdmin') && !$user->hasRole('admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Admins only.'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'full_name'     => 'sometimes|string|max:255',
+            'country_code'  => 'sometimes|string|max:5',
+            'phone_number'  => 'sometimes|string|max:20',
+            'governorate'   => 'sometimes|string|max:100',
+            'photo'         => 'nullable|image|mimes:jpg,jpeg,png,avif|max:2048',
+            'two_factor_enabled' => 'sometimes|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+
+        // تحديث الصورة
+        if ($request->hasFile('photo')) {
+            if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+                Storage::disk('public')->delete($user->photo);
+            }
+            $user->photo = $request->file('photo')->store('users', 'public');
+        }
+
+        $user->fill($request->only([
+            'full_name',
+            'country_code',
+            'phone_number',
+            'governorate',
+            'two_factor_enabled',
+        ]));
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Admin profile updated successfully',
+            'data' => [
+                'id'            => $user->id,
+                'full_name'     => $user->full_name,
+                'email'         => $user->email,
+                'country_code'  => $user->country_code,
+                'phone_number'  => $user->phone_number,
+                'governorate'   => $user->governorate,
+                'two_factor_enabled' => (bool) $user->two_factor_enabled,
+                'account_status'=> $user->account_status,
+                'photo'         => $user->photo
+                    ? asset('storage/' . ltrim($user->photo, '/'))
+                    : null,
+            ]
+        ]);
+    }
+
+
 }

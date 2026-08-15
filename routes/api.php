@@ -155,6 +155,10 @@ Route::prefix('v1')->group(function () {
 
             Route::post('/volunteers/update', [ProfileController::class, 'updateVolunteerProfile'])
                 ->middleware('role:volunteer');
+
+            // Admin Profile
+            Route::get('/admin', [ProfileController::class, 'showAdminProfile']);
+            Route::post('/admin', [ProfileController::class, 'updateAdminProfile']);
         });
          Route::prefix('lost-found')->group(function () {
             Route::post('/', [LostFoundController::class, 'store']);

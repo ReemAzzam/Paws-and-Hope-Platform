@@ -339,9 +339,10 @@ class AdminVerificationController extends Controller
         ], 200);
     }
 
-    public function getPendingVolunteers()
+    
+    public function getPendingVeterinarians()
     {
-        $volunteers = Volunteer::with([
+        $veterinarians = Veterinarian::with([
             'user:id,full_name,email,phone_number,country_code,governorate,photo,account_status',
         ])
         ->where('is_approved', false)
@@ -353,38 +354,38 @@ class AdminVerificationController extends Controller
 
         return response()->json([
             'success' => true,
-            'count'   => $volunteers->count(),
-            'data'    => $volunteers->map(function ($volunteer) {
+            'count'   => $veterinarians->count(),
+            'data'    => $veterinarians->map(function ($vet) {
                 return [
-                    'id' => $volunteer->id,
+                    'id' => $vet->id,
 
-                    'user_id' => $volunteer->user?->id,
+                    'user_id' => $vet->user?->id,
 
-                    'photo' => $volunteer->user?->photo
-                        ? asset('storage/' . $volunteer->user->photo)
+                    'photo' => $vet->user?->photo
+                        ? asset('storage/' . $vet->user->photo)
                         : null,
 
-                    'full_name' => $volunteer->user?->full_name,
-                    'email' => $volunteer->user?->email,
-                    'phone_number' => $volunteer->user?->phone_number,
-                    'country_code' => $volunteer->user?->country_code,
-                    'governorate' => $volunteer->user?->governorate,
+                    'full_name' => $vet->user?->full_name,
+                    'email' => $vet->user?->email,
+                    'phone_number' => $vet->user?->phone_number,
+                    'country_code' => $vet->user?->country_code,
+                    'governorate' => $vet->user?->governorate,
 
-                    'detailed_address' => $volunteer->detailed_address,
-                    'age' => $volunteer->age,
-                    'vol_type' => $volunteer->vol_type,
-                    'experience_level' => $volunteer->experience_level,
-                    'equipment' => $volunteer->equipment,
+                    'specialization' => $vet->specialization,
+                    'clinic_location' => $vet->clinic_location,
+                    'license_number' => $vet->license_number,
+                    'working_hours' => $vet->working_hours,
+                    'experience_years' => $vet->experience_years,
+                    'about' => $vet->about,
+                    'bio' => $vet->bio,
 
-                    'current_latitude' => $volunteer->current_latitude,
-                    'current_longitude' => $volunteer->current_longitude,
-
-                    'is_approved' => $volunteer->is_approved,
-                    'approved_at' => $volunteer->approved_at,
+                    'is_approved' => $vet->is_approved,
+                    'approved_at' => $vet->approved_at,
                 ];
             })->values(),
         ], 200);
     }
+
 
     public function getApprovedVolunteers()
     {
