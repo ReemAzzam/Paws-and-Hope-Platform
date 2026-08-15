@@ -168,4 +168,39 @@ class TransparencyDashboardController extends Controller
             ], 500);
         }
     }
+
+    //===========================================
+    //statistics
+    //===========================================
+
+    public function dashboardStats()
+    {
+        $totalAnimals = \App\Models\Animal::count();
+
+        $adoptedAnimals = \App\Models\Animal::where('availability_status', 'adopted')->count();
+
+        $successfulRescues = \App\Models\RescueReport::where('status', 'resolved')->count();
+
+        $activeVolunteers = \App\Models\User::role('volunteer')
+            ->where('account_status', 'active')
+            ->whereHas('volunteer', function ($q) {
+                $q->where('is_approved', true);
+            })
+            ->count();
+
+        $donorsCount = \App\Models\Donation::where('status', 'verified')
+            ->distinct('user_id')
+            ->count('user_id');
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total_animals'        => $totalAnimals,
+                'adopted_animals'      => $adoptedAnimals,
+                'successful_rescues'   => $successfulRescues,
+                'active_volunteers'    => $activeVolunteers,
+                'donors_count'         => $donorsCount,
+            ]
+        ]);
+    }
 }

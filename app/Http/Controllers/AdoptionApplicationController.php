@@ -165,7 +165,7 @@ class AdoptionApplicationController extends Controller
             $query->where('animal_id', $request->animal_id);
         }
 
-        $applications = $query->latest()->paginate(15);
+        $applications = $query->latest()->paginate(10);
 
         return response()->json([
             'success' => true,

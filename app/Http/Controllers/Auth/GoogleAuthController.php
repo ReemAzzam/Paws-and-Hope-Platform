@@ -142,21 +142,26 @@ class GoogleAuthController extends Controller
 
         $user->refresh();
 
-        return response()->json([
-            'success' => true,
-            'message' => 'Role selected successfully',
-            'data'    => [
-                'role'           => $role,
-                'next'           => match ($role) {
-                    'regular_user' => 'home',
-                    'veterinarian' => 'complete_vet_profile',
-                    'volunteer'    => 'complete_volunteer_profile',
-                },
-                'requires_otp'   => false,
-                'email_verified' => !is_null($user->email_verified_at),
-                'account_status' => $user->account_status,
-            ]
-        ]);
+    return response()->json([
+        'success' => true,
+        'message' => 'Role selected successfully',
+        'data' => [
+            'role' => $role,
+            'account_status' => $user->account_status,
+            'email_verified' => !is_null($user->email_verified_at),
+            'requires_otp' => false,
+            'next' => match ($role) {
+                'regular_user' => 'home',
+                'veterinarian' => 'complete_vet_profile',
+                'volunteer'    => 'complete_volunteer_profile',
+            },
+            'message_for_user' => match ($role) {
+                'regular_user' => 'Account activated successfully',
+                'veterinarian' => 'Please complete your veterinarian profile. Account stays pending until admin approval',
+                'volunteer'    => 'Please complete your volunteer profile. Account stays pending until admin approval',
+            },
+        ]
+    ]);
     }
 
     /**

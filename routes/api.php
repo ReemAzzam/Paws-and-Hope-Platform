@@ -126,6 +126,8 @@ Route::prefix('v1')->group(function () {
     // ====================== Auth Protected ======================
     Route::middleware('auth:sanctum')->group(function () {
 
+        Route::get('/statistics',[TransparencyDashboardController::class , 'dashboardStats']);
+
         Route::post('/logout', [LoginController::class, 'logout']);
 
         // after google signup
