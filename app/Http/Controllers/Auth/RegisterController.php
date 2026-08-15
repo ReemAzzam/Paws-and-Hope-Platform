@@ -79,11 +79,11 @@ class RegisterController extends Controller
                         'updated_at' => now(),
                     ]);
                 } elseif ($request->role === 'veterinarian') {
-                    // DB::table('veterinarians')->insert([
-                    //     'user_id'    => $user->id,
-                    //     'created_at' => now(),
-                    //     'updated_at' => now(),
-                    // ]);
+                    DB::table('veterinarians')->insert([
+                        'user_id'    => $user->id,
+                        'created_at' => now(),
+                        'updated_at' => now(),
+                    ]);
                 } elseif ($request->role === 'regular_user') {
                     DB::table('regular_users')->insert([
                         'user_id'    => $user->id,
@@ -127,7 +127,7 @@ class RegisterController extends Controller
     }
 
     // complete the veterinarian profile
-        public function completeVetProfile(Request $request)
+   public function completeVetProfile(Request $request)
     {
         $user = $request->user();
 
@@ -138,39 +138,70 @@ class RegisterController extends Controller
             ], 403);
         }
 
+        $vet = Veterinarian::where('user_id', $user->id)->first();
+
+        if (!$vet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Veterinarian profile record not found.'
+            ], 404);
+        }
+
         $validator = Validator::make($request->all(), [
-            'specialization'    => 'required|string|max:255',
-            'clinic_location'   => 'required|string|max:255',
-           'license_number' => 'required|string|max:255|unique:veterinarians,license_number',
-           'working_hours'     => 'nullable|string|max:255',
+            'specialization'   => 'required|string|max:255',
+            'clinic_location'  => 'required|string|max:255',
+
+            'license_number' => [
+                'required',
+                'string',
+                'max:255',
+                'unique:veterinarians,license_number,' . $vet->id,
+            ],
+
+            'working_hours'   => 'nullable|string|max:255',
+            'experience_years'=> 'nullable|integer|min:0|max:100',
+            'about'           => 'nullable|string',
+            'bio'             => 'nullable|string',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'success' => false,
-                'errors'  => $validator->errors()
+                'errors' => $validator->errors()
             ], 422);
         }
 
-            $vet = Veterinarian::updateOrCreate(
-        ['user_id' => $user->id],
-        [
-            'specialization'    => $request->specialization,
-            'clinic_location'   => $request->clinic_location,
-            'license_number'    => $request->license_number,
-            'working_hours'     => $request->working_hours,
-        ]
-    );
+        $vet->update([
+            'specialization'   => $request->specialization,
+            'clinic_location'  => $request->clinic_location,
+            'license_number'   => $request->license_number,
+            'working_hours'    => $request->working_hours,
+            'experience_years' => $request->experience_years,
+            'about'            => $request->about,
+            'bio'              => $request->bio,
+        ]);
 
         return response()->json([
             'success' => true,
             'message' => 'Veterinarian profile completed successfully.',
-            'data'    => [
+            'data' => [
+                'id'                => $vet->id,
+                'user_id'           => $user->id,
                 'professional_name' => $user->full_name,
+                'email'             => $user->email,
+                'phone'             => $user->phone_number,
+                'location'          => $user->governorate,
+                'photo'             => $user->photo
+                    ? asset('storage/' . $user->photo)
+                    : null,
+
                 'specialization'    => $vet->specialization,
                 'clinic_location'   => $vet->clinic_location,
-                'license_number'    => $vet->license_number,
                 'working_hours'     => $vet->working_hours,
+                'license_number'    => $vet->license_number,
+                'experience_years'  => $vet->experience_years,
+                'about'             => $vet->about,
+                'bio'               => $vet->bio,
                 'is_approved'       => $vet->is_approved,
             ]
         ], 200);

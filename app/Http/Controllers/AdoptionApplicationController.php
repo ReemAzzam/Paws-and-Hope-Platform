@@ -93,7 +93,7 @@ class AdoptionApplicationController extends Controller
           ->where('animal_id', $animal->id)
           ->where('status', 'active')
           ->first();
-          
+
 
        if ($activeSponsorship) {
 
@@ -136,9 +136,9 @@ class AdoptionApplicationController extends Controller
                     ->where('is_main', true)
                     ->first();
 
-                $application->animal->photo = $mainPhoto
-                    ? asset($mainPhoto->photo_url)
-                    : null;
+               $application->animal->photo = $mainPhoto
+    ? asset('storage/' . ltrim($mainPhoto->photo_url, '/'))
+    : null;
 
                 unset($application->animal->photos);
             }
@@ -178,7 +178,7 @@ class AdoptionApplicationController extends Controller
      */
     public function show(AdoptionApplication $application)
     {
-        $application->load(['user', 'animal', 'approvedBy']);
+        $application->load(['user', 'animal']);
         return response()->json([
             'success' => true,
             'data'    => $application
@@ -206,6 +206,7 @@ class AdoptionApplicationController extends Controller
             $application->update([
                 'status'       => 'approved',
                 'approved_at'  => now(),
+
             ]);
 
             $animal = $application->animal;

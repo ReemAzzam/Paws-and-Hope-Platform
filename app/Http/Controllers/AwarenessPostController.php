@@ -27,7 +27,7 @@ class AwarenessPostController extends Controller
         $validator = Validator::make($request->all(), [
             'title'   => 'required|string|max:255',
             'content' => 'required|string',
-            'image'   => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120', 
+            'image'   => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
 
         if ($validator->fails()) {
@@ -37,19 +37,17 @@ class AwarenessPostController extends Controller
             ], 422);
         }
 
-        $imageUrl = null;
+      $imagePath = null;
+
         if ($request->hasFile('image')) {
-            $path = $request->file('image')->store('awareness_posts', 'public');
-            $imageUrl = Storage::url($path);
-        }
-
-        $post = AwarenessPost::create([
-            'veterinarian_id' => $vet->id,
-            'title'           => $request->title,
-            'content'         => $request->content,
-            'image_url'       => $imageUrl,
-        ]);
-
+                $imagePath = $request->file('image')->store('awareness_posts', 'public');
+            }
+            $post = AwarenessPost::create([
+                'veterinarian_id' => $vet->id,
+                'title'           => $request->title,
+                'content'         => $request->content,
+                'image_url'       => $imagePath,
+            ]);
         return response()->json([
             'success' => true,
             'message' => 'Educational post compiled and broadcasted to public feeds successfully.',
@@ -80,7 +78,7 @@ class AwarenessPostController extends Controller
         }
 
         $validator = Validator::make($request->all(), [
-            'title'   => 'sometimes|required|string|max:255', 
+            'title'   => 'sometimes|required|string|max:255',
             'content' => 'sometimes|required|string',
             'image'   => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
         ]);
@@ -92,18 +90,15 @@ class AwarenessPostController extends Controller
             ], 422);
         }
 
-        $updateData = $request->only(['title', 'content']);
-
         if ($request->hasFile('image')) {
-            if ($post->image_url) {
-                $oldPath = str_replace('/storage/', '', $post->image_url);
-                Storage::disk('public')->delete($oldPath);
-            }
-
-            $path = $request->file('image')->store('awareness_posts', 'public');
-            $updateData['image_url'] = Storage::url($path);
+        if ($post->image_url) {
+            Storage::disk('public')->delete($post->image_url);
         }
 
+        $path = $request->file('image')->store('awareness_posts', 'public');
+
+        $updateData['image_url'] = $path;
+    }
         $post->update($updateData);
 
         return response()->json([
@@ -136,11 +131,10 @@ class AwarenessPostController extends Controller
         }
 
         if ($post->image_url) {
-            $filePath = str_replace('/storage/', '', $post->image_url);
-            if (Storage::disk('public')->exists($filePath)) {
-                Storage::disk('public')->delete($filePath);
-            }
+        if (Storage::disk('public')->exists($post->image_url)) {
+            Storage::disk('public')->delete($post->image_url);
         }
+    }
         $post->delete();
 
         return response()->json([
@@ -176,14 +170,14 @@ class AwarenessPostController extends Controller
             'success'     => true,
             'message'     => $message,
             'liked'       => $liked,
-            'likes_count' => $post->likes()->count() 
+            'likes_count' => $post->likes()->count()
         ], 200);
     }
 
     public function index()
     {
         $posts = AwarenessPost::with(['veterinarian.user' => function($query) {
-                $query->select('id', 'full_name'); 
+                $query->select('id', 'full_name');
             }])
             ->withCount('likes')
             ->latest()

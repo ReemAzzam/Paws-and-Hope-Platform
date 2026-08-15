@@ -177,7 +177,6 @@ class ProfileController extends Controller
         ]);
     }
 
-
     public function getVetProfile($id)
     {
         $user = User::findOrFail($id);
@@ -191,33 +190,60 @@ class ProfileController extends Controller
 
         $user->load([
             'veterinarian',
-            'veterinarian.awarenessPosts' => function($query) {
+            'veterinarian.awarenessPosts' => function ($query) {
                 $query->latest();
             },
-            'veterinarian.animals' => function($query) {
-                $query->select('animals.id', 'animals.name', 'animals.type', 'animals.health_status', 'animals.vet_id');
+            'veterinarian.animals' => function ($query) {
+                $query->select(
+                    'animals.id',
+                    'animals.name',
+                    'animals.type',
+                    'animals.health_status',
+                    'animals.vet_id'
+                );
             }
         ]);
 
+        $vet = $user->veterinarian;
+
+        if (!$vet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Veterinarian profile has not been completed yet.'
+            ], 404);
+        }
+
         return response()->json([
             'success' => true,
-            'data'    => [
+            'data' => [
                 'profile' => [
-                    'id'           => $user->id,
-                    'full_name'    => $user->full_name,
-                    'email'        => $user->email,
-                    'photo'        => $user->photo ? asset('storage/' . $user->photo) : null,
-                    'phone_number' => $user->phone_number,
-                    'governorate'  => $user->governorate,
-                    'specialization'   => $user->veterinarian->specialization,
-                    'clinic_location'  => $user->veterinarian->clinic_location,
-                    'working_hours'    => $user->veterinarian->working_hours,
-                    'license_number'   => $user->veterinarian->license_number,
-                    'is_approved'      => $user->veterinarian->is_approved,
-                ],
-                'my_posts'  => $user->veterinarian->awarenessPosts ?? [],
+                    'id'              => $user->id,
+                    'full_name'       => $user->full_name,
+                    'email'           => $user->email,
+                    'phone_number'    => $user->phone_number,
+                    'country_code'    => $user->country_code,
+                    'governorate'     => $user->governorate,
 
-                'my_patients' => $user->veterinarian->animals ?? []
+                    // User photo
+                    'photo'           => $user->photo
+                        ? asset('storage/' . $user->photo)
+                        : null,
+
+                    // Veterinarian data
+                    'specialization'  => $vet->specialization,
+                    'clinic_location' => $vet->clinic_location,
+                    'working_hours'   => $vet->working_hours,
+                    'license_number'  => $vet->license_number,
+                    'experience_years'=> $vet->experience_years,
+                    'about'           => $vet->about,
+                    'bio'             => $vet->bio,
+                    'is_approved'     => $vet->is_approved,
+                    'approved_at'     => $vet->approved_at,
+                ],
+
+                'my_posts' => $vet->awarenessPosts ?? [],
+
+                'my_patients' => $vet->animals ?? []
             ]
         ], 200);
     }
@@ -250,73 +276,136 @@ class ProfileController extends Controller
         ], 200);
     }
 
-        public function updateVetProfile(Request $request)
-    {
-        $user = $request->user();
+      public function updateVetProfile(Request $request)
+{
+    $user = $request->user();
 
-        if (!$user->hasRole('veterinarian')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized. This route is for veterinarians only.'
-            ], 403);
-        }
+    if (!$user->hasRole('veterinarian')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized. This route is for veterinarians only.'
+        ], 403);
+    }
 
-        $vet = $user->veterinarian;
+    $vet = $user->veterinarian;
 
-        $validator = Validator::make($request->all(), [
-            'full_name'      => 'sometimes|required|string|max:255',
-            'phone_number'   => 'sometimes|required|string|max:20',
-            'photo'          => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
-            'governorate'    => 'sometimes|required|string|max:100',
-            'clinic_address' => 'sometimes|string|max:255',
-            'specialization' => 'sometimes|string|max:255',
-            'bio'            => 'sometimes|string',
+    if (!$vet) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Veterinarian profile has not been completed yet.'
+        ], 404);
+    }
+
+    $validator = Validator::make($request->all(), [
+        // User fields
+        'full_name'       => 'sometimes|required|string|max:255',
+        'phone_number'    => 'sometimes|required|string|max:20',
+        'country_code'    => 'sometimes|string|max:5',
+        'governorate'     => 'sometimes|required|string|max:100',
+        'photo'           => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
+
+        // Veterinarian fields
+        'specialization'  => 'sometimes|required|string|max:255',
+        'clinic_location' => 'sometimes|required|string|max:255',
+        'license_number'  => 'sometimes|required|string|max:255|unique:veterinarians,license_number,' . $vet->id,
+        'working_hours'   => 'sometimes|nullable|string|max:255',
+        'experience_years'=> 'sometimes|nullable|integer|min:0|max:100',
+        'about'           => 'sometimes|nullable|string',
+        'bio'             => 'sometimes|nullable|string',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors'  => $validator->errors()
+        ], 422);
+    }
+
+    DB::transaction(function () use ($request, $user, $vet) {
+
+        /*
+        |--------------------------------------------------------------------------
+        | Update user data
+        |--------------------------------------------------------------------------
+        */
+
+        $userData = $request->only([
+            'full_name',
+            'phone_number',
+            'country_code',
+            'governorate',
         ]);
 
-        if ($validator->fails()) {
-            return response()->json(['success' => false, 'errors' => $validator->errors()], 422);
-        }
+        /*
+        |--------------------------------------------------------------------------
+        | Update profile photo
+        |--------------------------------------------------------------------------
+        */
 
-        $photoPath = $user->photo; // الاحتفاظ بالمسار الحالي افتراضياً
-
-        // معالجة رفع الصورة إذا تم إرسال ملف جديد
         if ($request->hasFile('photo')) {
-            // 1. حذف الصورة القديمة من القرص إذا كانت موجودة
-            if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+
+            if (
+                $user->photo &&
+                Storage::disk('public')->exists($user->photo)
+            ) {
                 Storage::disk('public')->delete($user->photo);
             }
 
-            // 2. رفع الصورة الجديدة وجلب المسار النصي
-            $path = $request->file('photo')->store('users', 'public');
-            $photoPath = Storage::url($path);
+            $userData['photo'] = $request
+                ->file('photo')
+                ->store('users', 'public');
         }
 
-        // إجراء التعديلات داخل المعاملة (Transaction)
-        DB::transaction(function () use ($request, $user, $vet, $photoPath) {
-            $userData = $request->only(['full_name', 'phone_number', 'governorate']);
+        $user->update($userData);
 
-            // تعيين المسار النصي للصورة في مصفوفة التحديث
-            if ($request->hasFile('photo')) {
-                $userData['photo'] = $photoPath;
-            }
+        /*
+        |--------------------------------------------------------------------------
+        | Update veterinarian data
+        |--------------------------------------------------------------------------
+        */
 
-            $user->update($userData);
+        $vet->update($request->only([
+            'specialization',
+            'clinic_location',
+            'license_number',
+            'working_hours',
+            'experience_years',
+            'about',
+            'bio',
+        ]));
+    });
 
-            if ($vet) {
-                $vet->update($request->only(['clinic_address', 'specialization', 'bio']));
-            }
-        });
+    $user->load('veterinarian');
 
-        $user->load('veterinarian');
+    $vet = $user->veterinarian;
 
-        return response()->json([
+    return response()->json([
         'success' => true,
         'message' => 'Veterinarian profile updated successfully.',
-        'data'    => $user
+        'data' => [
+            'id'               => $user->id,
+            'full_name'        => $user->full_name,
+            'email'            => $user->email,
+            'phone_number'     => $user->phone_number,
+            'country_code'     => $user->country_code,
+            'governorate'      => $user->governorate,
+
+            'photo'            => $user->photo
+                ? asset('storage/' . $user->photo)
+                : null,
+
+            'specialization'   => $vet->specialization,
+            'clinic_location'  => $vet->clinic_location,
+            'working_hours'    => $vet->working_hours,
+            'license_number'   => $vet->license_number,
+            'experience_years' => $vet->experience_years,
+            'about'            => $vet->about,
+            'bio'              => $vet->bio,
+            'is_approved'      => $vet->is_approved,
+            'approved_at'      => $vet->approved_at,
+        ]
     ], 200);
-    }
-
-
+}
 
     public function updateVolunteerProfile(Request $request)
 {
@@ -394,4 +483,120 @@ class ProfileController extends Controller
             'message' => 'Media asset dropped successfully.'
         ]);
     }
+    --------------------------------------------------------
+    //============ ADMIN PROFILE ==============
+
+    /**
+ * عرض بروفايل الأدمن
+ * GET /api/v1/admin/profile
+ */
+    public function showAdminProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->hasRole('SuperAdmin') && !$user->hasRole('admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Admins only.'
+            ], 403);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'personal_information' => [
+                    'id'         => $user->id,
+                    'full_name'  => $user->full_name,
+                    'email'      => $user->email,
+                    'phone'      => trim(($user->country_code ?? '') . ' ' . ($user->phone_number ?? '')),
+                    'country_code'=> $user->country_code,
+                    'phone_number'=> $user->phone_number,
+                    'role'       => $user->getRoleNames()->first() ?? 'SuperAdmin',
+                    'department' => 'Management', // ثابت مؤقتًا لأن ما في عمود
+                    'joined_on'  => optional($user->created_at)->format('d F Y'),
+                    'last_login' => null, // يحتاج عمود last_login_at
+                    'location'   => $user->governorate,
+                    'photo'      => $user->photo
+                        ? asset('storage/' . ltrim($user->photo, '/'))
+                        : null,
+                ],
+                'security_access' => [
+                    'two_factor_enabled' => (bool) $user->two_factor_enabled,
+                    'account_status'     => $user->account_status,
+                    'active_sessions'    => $user->tokens()->count(),
+                ],
+            ]
+        ]);
+    }
+
+    /**
+     * تعديل معلومات الأدمن
+     * POST /api/v1/admin/profile  (أو PUT)
+     * form-data إذا في صورة
+     */
+    public function updateAdminProfile(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->hasRole('SuperAdmin') && !$user->hasRole('admin')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. Admins only.'
+            ], 403);
+        }
+
+        $validator = Validator::make($request->all(), [
+            'full_name'     => 'sometimes|string|max:255',
+            'country_code'  => 'sometimes|string|max:5',
+            'phone_number'  => 'sometimes|string|max:20',
+            'governorate'   => 'sometimes|string|max:100',
+            'photo'         => 'nullable|image|mimes:jpg,jpeg,png,avif|max:2048',
+            'two_factor_enabled' => 'sometimes|boolean',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+
+        // تحديث الصورة
+        if ($request->hasFile('photo')) {
+            if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+                Storage::disk('public')->delete($user->photo);
+            }
+            $user->photo = $request->file('photo')->store('users', 'public');
+        }
+
+        $user->fill($request->only([
+            'full_name',
+            'country_code',
+            'phone_number',
+            'governorate',
+            'two_factor_enabled',
+        ]));
+
+        $user->save();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Admin profile updated successfully',
+            'data' => [
+                'id'            => $user->id,
+                'full_name'     => $user->full_name,
+                'email'         => $user->email,
+                'country_code'  => $user->country_code,
+                'phone_number'  => $user->phone_number,
+                'governorate'   => $user->governorate,
+                'two_factor_enabled' => (bool) $user->two_factor_enabled,
+                'account_status'=> $user->account_status,
+                'photo'         => $user->photo
+                    ? asset('storage/' . ltrim($user->photo, '/'))
+                    : null,
+            ]
+        ]);
+    }
+
+
 }

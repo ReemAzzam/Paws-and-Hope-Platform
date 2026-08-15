@@ -133,6 +133,16 @@ class RescueReportController extends Controller
 
         $reportData = $report->toArray();
 
+        $reportData['images'] = collect($reportData['images'])->map(function ($image) {
+            $image['image_path'] = str_replace(
+                'http://localhost',
+                'http://127.0.0.1:8000',
+                $image['image_path']
+            );
+
+            return $image;
+        })->values()->toArray();
+
         if ($report->volunteer) {
             $reportData['live_location'] = [
                 'latitude'  => $report->volunteer->current_latitude,
@@ -538,7 +548,7 @@ class RescueReportController extends Controller
         ], 200);
     }
 
-    // My rescue reports
+   // My rescue reports
     public function myRescueReports(Request $request)
     {
         $reports = RescueReport::where('user_id', $request->user()->id)
@@ -554,7 +564,13 @@ class RescueReportController extends Controller
                     'location' => $report->location_address,
                     'reported_at' => $report->created_at->format('M d, Y'),
                     'volunteer' => $report->volunteer?->user?->full_name,
-                    'images' => $report->images->pluck('image_path')->values(),
+                    'images' => $report->images->map(function ($image) {
+                    return preg_replace(
+                        '#^https?://localhost#',
+                        'http://127.0.0.1:8000',
+                        $image->image_path
+                    );
+                })->values(),
                 ];
             });
 
