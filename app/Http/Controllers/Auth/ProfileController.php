@@ -425,7 +425,6 @@ class ProfileController extends Controller
         'phone_number'    => 'sometimes|required|string|max:20',
         'governorate'     => 'sometimes|required|string|max:100',
         'photo'           => 'sometimes|image|mimes:jpg,jpeg,png|max:2048',
-        'skills'          => 'sometimes|string',
         'available_hours' => 'sometimes|integer',
     ]);
 
@@ -459,7 +458,7 @@ class ProfileController extends Controller
         $user->update($userData);
 
         if ($volunteer) {
-            $volunteer->update($request->only(['skills', 'available_hours']));
+            $volunteer->update($request->only(['available_hours']));
         }
     });
 
@@ -483,7 +482,7 @@ class ProfileController extends Controller
             'message' => 'Media asset dropped successfully.'
         ]);
     }
-    --------------------------------------------------------
+
     //============ ADMIN PROFILE ==============
 
     /**
@@ -529,11 +528,7 @@ class ProfileController extends Controller
         ]);
     }
 
-    /**
-     * تعديل معلومات الأدمن
-     * POST /api/v1/admin/profile  (أو PUT)
-     * form-data إذا في صورة
-     */
+
     public function updateAdminProfile(Request $request)
     {
         $user = $request->user();

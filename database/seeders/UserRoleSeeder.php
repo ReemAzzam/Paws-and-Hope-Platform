@@ -58,6 +58,7 @@ class UserRoleSeeder extends Seeder
                 'full_name'          => 'المدير العام للمنصة',
                 'password'           => Hash::make('Admin@1234'),
                 'photo'              => $this->storeUserPhoto('admin.avif', 'admin.avif'),
+                'email'              => 'admin@platform.com',
                 'country_code'       => 'SY',
                 'phone_number'       => '933333333',
                 'governorate'        => 'دمشق',
