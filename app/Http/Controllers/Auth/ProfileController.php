@@ -593,5 +593,61 @@ class ProfileController extends Controller
         ]);
     }
 
+    /**
+ * حيوانات الطبيب البيطري الحالي
+ * GET /api/v1/vet/my-animals
+ */
+    public function myAnimals(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user->hasRole('veterinarian')) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Unauthorized. This route is for veterinarians only.'
+            ], 403);
+        }
+
+        $vet = $user->veterinarian;
+
+        if (!$vet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Veterinarian profile not completed yet.'
+            ], 404);
+        }
+
+        $animals = \App\Models\Animal::with('photos')
+            ->where('vet_id', $vet->id)
+            ->latest()
+            ->get()
+            ->map(function ($animal) {
+                return [
+                    'id'                  => $animal->id,
+                    'name'                => $animal->name,
+                    'type'                => $animal->type,
+                    'gender'              => $animal->gender,
+                    'age'                 => $animal->age,
+                    'size'                => $animal->size,
+                    'health_status'       => $animal->health_status,
+                    'availability_status' => $animal->availability_status,
+                    'is_urgent'           => (bool) $animal->is_urgent,
+                    'photo'               => optional($animal->photos->first())->photo_url
+                        ? (str_starts_with($animal->photos->first()->photo_url, 'http')
+                            ? $animal->photos->first()->photo_url
+                            : asset('storage/' . ltrim($animal->photos->first()->photo_url, '/')))
+                        : null,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'total'   => $animals->count(),
+                'animals' => $animals,
+            ]
+        ]);
+    }
+
 
 }

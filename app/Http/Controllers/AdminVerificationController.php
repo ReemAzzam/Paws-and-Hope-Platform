@@ -7,6 +7,8 @@ use App\Models\User;
 use App\Models\Volunteer;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
+use Carbon\Carbon;
+use Illuminate\Support\Facades\Validator;
 
 class AdminVerificationController extends Controller
 {
@@ -773,6 +775,100 @@ class AdminVerificationController extends Controller
                     })->values(),
                 ];
             })->values(),
+        ], 200);
+    }
+    //====================== الرسم البياني =========================
+    public function getVerificationChart(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'period' => 'nullable|in:this_month,last_month',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors' => $validator->errors()
+            ], 422);
+        }
+
+        $period = $request->input('period', 'this_month');
+
+        if ($period === 'last_month') {
+            $startDate = now()->subMonthNoOverflow()->startOfMonth();
+            $endDate   = now()->subMonthNoOverflow()->endOfMonth();
+        } else {
+            $startDate = now()->startOfMonth();
+            $endDate   = now()->endOfMonth();
+        }
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get veterinarians
+        |--------------------------------------------------------------------------
+        */
+
+        $veterinarians = Veterinarian::whereBetween('created_at', [
+            $startDate,
+            $endDate
+        ])
+        ->get()
+        ->groupBy(function ($vet) {
+            return $vet->created_at->format('Y-m-d');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Get volunteers
+        |--------------------------------------------------------------------------
+        */
+
+        $volunteers = Volunteer::whereBetween('created_at', [
+            $startDate,
+            $endDate
+        ])
+        ->get()
+        ->groupBy(function ($volunteer) {
+            return $volunteer->created_at->format('Y-m-d');
+        });
+
+        /*
+        |--------------------------------------------------------------------------
+        | Generate chart points
+        |--------------------------------------------------------------------------
+        */
+
+        $xAxis = [];
+        $veterinarianData = [];
+        $volunteerData = [];
+
+        $currentDate = $startDate->copy();
+
+        while ($currentDate <= $endDate) {
+
+            $dateKey = $currentDate->format('Y-m-d');
+
+            $xAxis[] = $currentDate->format('M j');
+
+            $veterinarianData[] =
+                $veterinarians->get($dateKey)?->count() ?? 0;
+
+            $volunteerData[] =
+                $volunteers->get($dateKey)?->count() ?? 0;
+
+            $currentDate->addDay();
+        }
+
+        return response()->json([
+            'success' => true,
+            'data' => [
+                'monthLabel' => $startDate->format('F'),
+
+                'xAxis' => $xAxis,
+
+                'veterinarians' => $veterinarianData,
+
+                'volunteers' => $volunteerData,
+            ]
         ], 200);
     }
 }

@@ -147,6 +147,7 @@ Route::prefix('v1')->group(function () {
             Route::put('/vet/complete',[RegisterController::class,'completeVetProfile'])
             ->middleware('role:veterinarian');
             Route::get('/veterinarians/{id}', [ProfileController::class, 'getVetProfile']);
+            Route::get('/vet/animals', [ProfileController::class, 'myAnimals']);
             Route::post('/veterinarians/update', [ProfileController::class, 'updateVetProfile']);
 
             // Volunteer Profile
@@ -198,6 +199,8 @@ Route::prefix('v1')->group(function () {
 
             // ======== Verification Counts ========
             Route::get('/staff-counts', [AdminVerificationController::class, 'getStaffCounts']);
+            //رسم بياني
+            Route::get('/verification-chart', [AdminVerificationController::class,'getVerificationChart']);
 
             // ======== Veterinarian Verification ========
             Route::patch('/veterinarians/{id}/approve', [AdminVerificationController::class, 'approveVeterinarian']);
