@@ -148,50 +148,85 @@ public function requestSponsorship(Request $request)
     }
 
     // 4. مراجعة الدفعة من الأدمن
-    public function verifyPayment(Request $request, $paymentId)
-    {
-        $validator = Validator::make($request->all(), [
-            'status'           => 'required|in:verified,rejected',
-            'rejection_reason' => 'required_if:status,rejected|string|nullable',
-        ]);
+public function verifyPayment(Request $request, $paymentId)
+{
+    $validator = Validator::make($request->all(), [
+        'status'           => 'required|in:verified,rejected',
+        'rejection_reason' => 'required_if:status,rejected|string|nullable',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+    if ($validator->fails()) {
+        return response()->json(['errors' => $validator->errors()], 422);
+    }
 
-        $payment = SponsorshipPayment::findOrFail($paymentId);
-        $sponsorship = $payment->sponsorship;
+    $payment = SponsorshipPayment::findOrFail($paymentId);
 
-        DB::beginTransaction();
-        try {
-            if ($request->status === 'verified') {
-                $payment->update([
-                    'verification_status' => 'verified',
-                    'verified_by'         => Auth::id(),
-                    'verified_at'         => now(),
-                ]);
+    // Prevent modification if already verified or rejected
+    if ($payment->verification_status === 'verified') {
+        return response()->json([
+            'success' => false,
+            'message' => 'This payment has already been verified and cannot be modified or rejected.'
+        ], 400);
+    }
 
-                $sponsorship->update([
-                    'status'           => 'active',
-                    'start_date'       => $sponsorship->start_date ?? now()->toDateString(),
-                    'next_payment_due' => Carbon::now()->addMonth()->toDateString(),
-                    'payment_due_date' => null,
-                ]);
-            } else {
-                $payment->update([
-                    'verification_status' => 'rejected',
-                    'rejection_reason'    => $request->rejection_reason,
+    if ($payment->verification_status === 'rejected') {
+        return response()->json([
+            'success' => false,
+            'message' => 'This payment has already been rejected and cannot be verified.'
+        ], 400);
+    }
+
+    $sponsorship = $payment->sponsorship;
+
+    DB::beginTransaction();
+    try {
+        if ($request->status === 'verified') {
+            // 1. Update payment status
+            $payment->update([
+                'verification_status' => 'verified',
+                'verified_by'         => Auth::id(),
+                'verified_at'         => now(),
+            ]);
+
+            // 2. Update sponsorship status and due dates
+            $sponsorship->update([
+                'status'           => 'active',
+                'start_date'       => $sponsorship->start_date ?? now()->toDateString(),
+                'next_payment_due' => Carbon::now()->addMonth()->toDateString(),
+                'payment_due_date' => null, // Clear initial temporary deadline
+            ]);
+
+            // 3. Update animal availability status to 'sponsored'
+            if ($sponsorship->animal) {
+                $sponsorship->animal->update([
+                    'availability_status' => 'sponsored'
                 ]);
             }
 
-            DB::commit();
-            return response()->json(['message' => 'Payment status updated successfully.'], 200);
-
-        } catch (\Exception $e) {
-            DB::rollBack();
-            return response()->json(['message' => 'An error occurred.', 'error' => $e->getMessage()], 500);
+        } else {
+            // Rejection logic
+            $payment->update([
+                'verification_status' => 'rejected',
+                'rejection_reason'    => $request->rejection_reason,
+            ]);
         }
+
+        DB::commit();
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Payment status updated successfully.'
+        ], 200);
+
+    } catch (\Exception $e) {
+        DB::rollBack();
+        return response()->json([
+            'success' => false,
+            'message' => 'An error occurred while updating payment status.',
+            'error'   => $e->getMessage()
+        ], 500);
     }
+}
 
     public function mySponsorships()
     {
