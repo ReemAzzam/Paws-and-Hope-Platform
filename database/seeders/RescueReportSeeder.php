@@ -45,6 +45,12 @@ class RescueReportSeeder extends Seeder
 
         $reportsData = $this->getFullReportsList();
 
+        // التأكد من وجود مجلد rescue_reports في Storage العامة
+        $destinationPath = storage_path("app/public/rescue_reports");
+        if (!File::exists($destinationPath)) {
+            File::makeDirectory($destinationPath, 0755, true);
+        }
+
         foreach ($reportsData as $data) {
             // صاحب البلاغ يحدد من قائمة المستخدمين العاديين
             $data['user_id'] = $regularUserIds[array_rand($regularUserIds)];
@@ -61,32 +67,18 @@ class RescueReportSeeder extends Seeder
             $animalType = $report->animal_type;
             $availableImages = $animalImageFiles[$animalType] ?? ['default.jpg'];
 
-            $photoCount = rand(1, 2);
-            $selectedImages = Arr::random($availableImages, min($photoCount, count($availableImages)));
-            $selectedImages = is_array($selectedImages) ? $selectedImages : [$selectedImages];
+            // اختيار صورة واحدة فقط بشكل عشوائي لكل بلاغ
+            $selectedImage = Arr::random($availableImages);
 
-            $destinationPath = storage_path("app/public/rescue_reports/{$report->id}");
+            // توليد الرابط المخزن ليكون بالشكل المطلوب: /storage/rescue_reports/{imageFileName}
+            $fullUrl = asset("storage/rescue_reports/{$selectedImage}");
 
-            if (!File::exists($destinationPath)) {
-                File::makeDirectory($destinationPath, 0755, true);
-            }
-
-            foreach ($selectedImages as $imageFileName) {
-                $sourceFile = storage_path("app/public/rescue_reports/{$imageFileName}");
-
-                if (File::exists($sourceFile)) {
-                    File::copy($sourceFile, "{$destinationPath}/{$imageFileName}");
-                }
-
-                $fullUrl = asset("storage/rescue_reports/{$report->id}/{$imageFileName}");
-
-                RescueReportImage::create([
-                    'rescue_report_id' => $report->id,
-                    'image_path'       => $fullUrl,
-                    'created_at'       => $report->created_at,
-                    'updated_at'       => $report->created_at,
-                ]);
-            }
+            RescueReportImage::create([
+                'rescue_report_id' => $report->id,
+                'image_path'       => $fullUrl,
+                'created_at'       => $report->created_at,
+                'updated_at'       => $report->created_at,
+            ]);
         }
 
         $this->command->info('✅ Rescue reports seeded successfully for regular users!');
