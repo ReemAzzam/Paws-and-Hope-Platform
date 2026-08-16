@@ -110,35 +110,52 @@ class GoogleAuthController extends Controller
 
         $role = $request->role;
 
-        DB::transaction(function () use ($user, $role) {
-            $user->assignRole($role);
+       DB::transaction(function () use ($user, $role) {
 
-            if ($role === 'regular_user') {
-                DB::table('regular_users')->insert([
-                    'user_id'    => $user->id,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
+        $user->assignRole($role);
 
-                $user->update([
-                    'account_status'    => 'active',
-                    'email_verified_at' => $user->email_verified_at ?? now(),
-                ]);
-            }
+        // Google Login already verifies the email,
+        // so the account becomes active for all roles.
+        $user->update([
+            'account_status'    => 'active',
+            'email_verified_at' => $user->email_verified_at ?? now(),
+        ]);
 
-            if ($role === 'volunteer') {
-                DB::table('volunteers')->insert([
-                    'user_id'    => $user->id,
-                    'created_at' => now(),
-                    'updated_at' => now(),
-                ]);
-                // يبقى pending إلى إكمال الملف + موافقة الأدمن
-            }
+        if ($role === 'regular_user') {
 
-            if ($role === 'veterinarian') {
-                // يتكمل عبر completeVetProfile
-            }
-        });
+            DB::table('regular_users')->insert([
+                'user_id'    => $user->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+        }
+
+        if ($role === 'volunteer') {
+
+            DB::table('volunteers')->insert([
+                'user_id'    => $user->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // account_status = active
+            // is_approved = false
+            // Admin approval is still required
+        }
+
+        if ($role === 'veterinarian') {
+
+            DB::table('veterinarians')->insert([
+                'user_id'    => $user->id,
+                'created_at' => now(),
+                'updated_at' => now(),
+            ]);
+
+            // account_status = active
+            // is_approved = false
+            // Admin approval is still required
+        }
+    });
 
         $user->refresh();
 
