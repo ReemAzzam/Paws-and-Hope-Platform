@@ -209,6 +209,10 @@ Route::prefix('v1')->group(function () {
 
         Route::middleware(['role:SuperAdmin'])->prefix('admin')->group(function () {
 
+        // regular users block+unblock
+           Route::patch('/admin/regular-users/{id}/block', [AdminVerificationController::class, 'blockRegularUser']);
+
+           Route::patch('/admin/regular-users/{id}/unblock', [AdminVerificationController::class, 'unblockRegularUser']);
             // ======== Verification Counts ========
             Route::get('/staff-counts', [AdminVerificationController::class, 'getStaffCounts']);
             //رسم بياني

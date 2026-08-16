@@ -27,7 +27,8 @@ class Volunteer extends Model
         'equipment'         => 'array',
         'current_latitude'  => 'decimal:8',
         'current_longitude' => 'decimal:8',
-        'is_approved'       => 'boolean',
+        'approved_at' => 'datetime',
+        'is_approved' => 'boolean',
     ];
 
     public function user()

@@ -23,6 +23,11 @@ class Veterinarian extends Model
         'approved_by',
     ];
 
+    protected $casts = [
+    'approved_at' => 'datetime',
+    'is_approved' => 'boolean',
+];
+
     public function user()
     {
         return $this->belongsTo(User::class);

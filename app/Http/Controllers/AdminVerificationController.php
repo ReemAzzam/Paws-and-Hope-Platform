@@ -139,6 +139,78 @@ class AdminVerificationController extends Controller
         ], 200);
     }
 
+    public function blockRegularUser(Request $request, $id)
+{
+    $user = User::findOrFail($id);
+
+    // التأكد أن المستخدم Regular User
+    if (!$user->hasRole('regular_user')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'This user is not a regular user.'
+        ], 403);
+    }
+
+    // إذا كان محظور مسبقاً
+    if ($user->account_status === 'suspended') {
+        return response()->json([
+            'success' => false,
+            'message' => 'This account is already blocked.'
+        ], 400);
+    }
+
+    $user->update([
+        'account_status' => 'suspended',
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Regular user account has been blocked successfully.',
+        'data' => [
+            'id'             => $user->id,
+            'full_name'      => $user->full_name,
+            'email'          => $user->email,
+            'account_status' => $user->account_status,
+        ]
+    ], 200);
+}
+
+public function unblockRegularUser(Request $request, $id)
+{
+    $user = User::findOrFail($id);
+
+    // التأكد أن المستخدم Regular User
+    if (!$user->hasRole('regular_user')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'This user is not a regular user.'
+        ], 403);
+    }
+
+    // لازم يكون suspended حتى نعمله unblock
+    if ($user->account_status !== 'suspended') {
+        return response()->json([
+            'success' => false,
+            'message' => 'This regular user account is not blocked.'
+        ], 400);
+    }
+
+    $user->update([
+        'account_status' => 'active',
+    ]);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Regular user account has been unblocked successfully.',
+        'data' => [
+            'id'             => $user->id,
+            'full_name'      => $user->full_name,
+            'email'          => $user->email,
+            'account_status' => $user->account_status,
+        ]
+    ], 200);
+}
+
     public function blockVeterinarian(Request $request, $id)
     {
         $vet = Veterinarian::with('user')->findOrFail($id);

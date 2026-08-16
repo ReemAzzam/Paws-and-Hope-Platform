@@ -255,7 +255,7 @@ return response()->json([
         ->where('animal_type', $lostFound->animal_type)
         ->with('photos')
         ->latest()
-        ->limit(6)
+        ->limit(3)
         ->get();
 
     $data = $similar->map(function ($post) {
