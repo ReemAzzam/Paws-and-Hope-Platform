@@ -408,7 +408,7 @@ Route::prefix('v1')->group(function () {
                 // ======== Veterinarian Routes ========
                 Route::middleware('role:veterinarian')->group(function () {
                     Route::post('/', [AwarenessPostController::class, 'store']);
-                    Route::put('/{id}', [AwarenessPostController::class, 'update']);
+                    Route::post('/{id}', [AwarenessPostController::class, 'update']);
                     Route::delete('/{id}', [AwarenessPostController::class, 'destroy']);
                 });
             });

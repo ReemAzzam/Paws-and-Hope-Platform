@@ -936,27 +936,20 @@ public function unblockRegularUser(Request $request, $id)
     }
 
     // عدد الأطباء الذين تمت الموافقة عليهم بكل يوم
-    $veterinarians = Veterinarian::where('is_approved', true)
-        ->whereBetween('approved_at', [
-            $startDate,
-            $endDate
-        ])
-        ->get()
-        ->groupBy(function ($vet) {
-            return $vet->approved_at->format('Y-m-d');
-        });
+$veterinarians = Veterinarian::where('is_approved', true)
+    ->whereBetween('approved_at', [$startDate, $endDate])
+    ->get()
+    ->groupBy(function ($vet) {
+        return \Carbon\Carbon::parse($vet->approved_at)->format('Y-m-d');
+    });
 
-    // عدد المتطوعين الذين تمت الموافقة عليهم بكل يوم
-    $volunteers = Volunteer::where('is_approved', true)
-        ->whereBetween('approved_at', [
-            $startDate,
-            $endDate
-        ])
-        ->get()
-        ->groupBy(function ($volunteer) {
-            return $volunteer->approved_at->format('Y-m-d');
-        });
-
+// عدد المتطوعين الذين تمت الموافقة عليهم بكل يوم
+$volunteers = Volunteer::where('is_approved', true)
+    ->whereBetween('approved_at', [$startDate, $endDate])
+    ->get()
+    ->groupBy(function ($volunteer) {
+        return \Carbon\Carbon::parse($volunteer->approved_at)->format('Y-m-d');
+    });
     $xAxis = [];
     $veterinarianData = [];
     $volunteerData = [];

@@ -56,57 +56,87 @@ class AwarenessPostController extends Controller
     }
 
     public function update(Request $request, $id)
-    {
-        $user = $request->user();
+{
+    $user = $request->user();
 
-        $vet = Veterinarian::where('user_id', $user->id)->where('is_approved', true)->first();
+    $vet = Veterinarian::where('user_id', $user->id)
+        ->where('is_approved', true)
+        ->first();
 
-        if (!$vet) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Access denied. Restricted to verified veterinarians.'
-            ], 403);
-        }
+    if (!$vet) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Access denied. Restricted to verified veterinarians.'
+        ], 403);
+    }
 
-        $post = AwarenessPost::findOrFail($id);
+    $post = AwarenessPost::findOrFail($id);
 
-        if ($post->veterinarian_id !== $vet->id) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized action. You can only edit your own posts.'
-            ], 403);
-        }
+    if ($post->veterinarian_id !== $vet->id) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized action. You can only edit your own posts.'
+        ], 403);
+    }
 
-        $validator = Validator::make($request->all(), [
-            'title'   => 'sometimes|required|string|max:255',
-            'content' => 'sometimes|required|string',
-            'image'   => 'nullable|image|mimes:jpeg,png,jpg,gif|max:5120',
-        ]);
+    $validator = Validator::make($request->all(), [
+        'title'   => 'sometimes|required|string|max:255',
+        'content' => 'sometimes|required|string',
+        'image'   => 'nullable|image|mimes:jpeg,png,jpg,gif,avif|max:5120',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors'  => $validator->errors()
-            ], 422);
-        }
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors'  => $validator->errors()
+        ], 422);
+    }
 
-        if ($request->hasFile('image')) {
+    // ✅ تعريف المصفوفة أولاً
+    $updateData = [];
+
+    if ($request->filled('title')) {
+        $updateData['title'] = $request->title;
+    }
+
+    if ($request->filled('content')) {
+        $updateData['content'] = $request->content;
+    }
+
+    if ($request->hasFile('image')) {
         if ($post->image_url) {
             Storage::disk('public')->delete($post->image_url);
         }
 
         $path = $request->file('image')->store('awareness_posts', 'public');
-
         $updateData['image_url'] = $path;
     }
-        $post->update($updateData);
 
+    if (empty($updateData)) {
         return response()->json([
-            'success' => true,
-            'message' => 'Educational post updated successfully.',
-            'data'    => $post
-        ], 200);
+            'success' => false,
+            'message' => 'No data provided to update.'
+        ], 422);
     }
+
+    $post->update($updateData);
+    $post->refresh();
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Educational post updated successfully.',
+        'data'    => [
+            'id'         => $post->id,
+            'title'      => $post->title,
+            'content'    => $post->content,
+            'image_url'  => $post->image_url
+                ? asset('storage/' . ltrim($post->image_url, '/'))
+                : null,
+            'created_at' => $post->created_at,
+            'updated_at' => $post->updated_at,
+        ]
+    ], 200);
+}
 
     public function destroy(Request $request, $id)
     {
@@ -176,16 +206,33 @@ class AwarenessPostController extends Controller
 
     public function index()
     {
-        $posts = AwarenessPost::with(['veterinarian.user' => function($query) {
-                $query->select('id', 'full_name');
-            }])
+        $posts = AwarenessPost::with(['veterinarian.user:id,full_name,photo'])
             ->withCount('likes')
             ->latest()
-            ->paginate(10);
+            ->paginate(10)
+            ->through(function ($post) {
+                return [
+                    'id'         => $post->id,
+                    'title'      => $post->title,
+                    'content'    => $post->content,
+                    'image_url'  => $post->image_url
+                        ? asset('storage/' . ltrim($post->image_url, '/'))
+                        : null,
+                    'likes_count'=> $post->likes_count,
+                    'created_at' => $post->created_at,
+                    'veterinarian' => [
+                        'id'        => $post->veterinarian?->id,
+                        'full_name' => $post->veterinarian?->user?->full_name,
+                        'photo'     => $post->veterinarian?->user?->photo
+                            ? asset('storage/' . ltrim($post->veterinarian->user->photo, '/'))
+                            : null,
+                    ],
+                ];
+            });
 
         return response()->json([
             'success' => true,
-            'data'    => $posts
+            'data'    => $posts,
         ], 200);
     }
 

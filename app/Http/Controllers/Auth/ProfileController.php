@@ -182,76 +182,91 @@ class ProfileController extends Controller
         ]);
     }
 
-    public function getVetProfile($id)
-    {
-        $user = User::findOrFail($id);
-
-        if (!$user->hasRole('veterinarian')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'The requested profile is not a veterinarian.'
-            ], 404);
-        }
-
-        $user->load([
-            'veterinarian',
-            'veterinarian.awarenessPosts' => function ($query) {
+   /**
+ * GET /api/v1/veterinarians/{vetId}/profile
+ */
+public function getVetProfile($vetId)
+{
+    $vet = \App\Models\Veterinarian::with([
+            'user:id,full_name,email,phone_number,country_code,governorate,photo',
+            'awarenessPosts' => function ($query) {
                 $query->latest();
             },
-            'veterinarian.animals' => function ($query) {
-                $query->select(
-                    'animals.id',
-                    'animals.name',
-                    'animals.type',
-                    'animals.health_status',
-                    'animals.vet_id'
-                );
-            }
-        ]);
+            'animals' => function ($query) {
+                $query->select('id', 'name', 'type', 'health_status', 'vet_id');
+            },
+        ])
+        ->find($vetId);
 
-        $vet = $user->veterinarian;
-
-        if (!$vet) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Veterinarian profile has not been completed yet.'
-            ], 404);
-        }
-
+    if (!$vet) {
         return response()->json([
-            'success' => true,
-            'data' => [
-                'profile' => [
-                    'id'              => $user->id,
-                    'full_name'       => $user->full_name,
-                    'email'           => $user->email,
-                    'phone_number'    => $user->phone_number,
-                    'country_code'    => $user->country_code,
-                    'governorate'     => $user->governorate,
-
-                    // User photo
-                    'photo'           => $user->photo
-                        ? asset('storage/' . $user->photo)
-                        : null,
-
-                    // Veterinarian data
-                    'specialization'  => $vet->specialization,
-                    'clinic_location' => $vet->clinic_location,
-                    'working_hours'   => $vet->working_hours,
-                    'license_number'  => $vet->license_number,
-                    'experience_years'=> $vet->experience_years,
-                    'about'           => $vet->about,
-                    'bio'             => $vet->bio,
-                    'is_approved'     => $vet->is_approved,
-                    'approved_at'     => $vet->approved_at,
-                ],
-
-                'my_posts' => $vet->awarenessPosts ?? [],
-
-                'my_patients' => $vet->animals ?? []
-            ]
-        ], 200);
+            'success' => false,
+            'message' => 'Veterinarian not found.'
+        ], 404);
     }
+
+    $user = $vet->user;
+
+    if (!$user || !$user->hasRole('veterinarian')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'The requested profile is not a veterinarian.'
+        ], 404);
+    }
+
+    $posts = $vet->awarenessPosts->map(function ($post) {
+        return [
+            'id'              => $post->id,
+            'veterinarian_id' => $post->veterinarian_id,
+            'title'           => $post->title,
+            'content'         => $post->content,
+            'image_url'       => $post->image_url
+                ? asset('storage/' . ltrim($post->image_url, '/'))
+                : null,
+            'created_at'      => $post->created_at,
+            'updated_at'      => $post->updated_at,
+        ];
+    })->values();
+
+    $patients = $vet->animals->map(function ($animal) {
+        return [
+            'id'            => $animal->id,
+            'name'          => $animal->name,
+            'type'          => $animal->type,
+            'health_status' => $animal->health_status,
+            'vet_id'        => $animal->vet_id,
+        ];
+    })->values();
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'profile' => [
+                'id'               => $vet->id,      // ✅ veterinarian id
+                'user_id'          => $user->id,     // اختياري
+                'full_name'        => $user->full_name,
+                'email'            => $user->email,
+                'phone_number'     => $user->phone_number,
+                'country_code'     => $user->country_code,
+                'governorate'      => $user->governorate,
+                'photo'            => $user->photo
+                    ? asset('storage/' . ltrim($user->photo, '/'))
+                    : null,
+                'specialization'   => $vet->specialization,
+                'clinic_location'  => $vet->clinic_location,
+                'working_hours'    => $vet->working_hours,
+                'license_number'   => $vet->license_number,
+                'experience_years' => $vet->experience_years,
+                'about'            => $vet->about,
+                'bio'              => $vet->bio,
+                'is_approved'      => $vet->is_approved,
+                'approved_at'      => $vet->approved_at,
+            ],
+            'my_posts'    => $posts,
+            'my_patients' => $patients,
+        ]
+    ], 200);
+}
 
     public function getVolunteerProfile(Request $request, $id)
     {
