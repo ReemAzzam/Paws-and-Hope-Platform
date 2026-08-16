@@ -489,109 +489,185 @@ class ProfileController extends Controller
  * عرض بروفايل الأدمن
  * GET /api/v1/admin/profile
  */
-    public function showAdminProfile(Request $request)
-    {
-        $user = $request->user();
+   public function showAdminProfile(Request $request)
+{
+    $user = $request->user();
 
-        if (!$user->hasRole('SuperAdmin') && !$user->hasRole('admin')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized. Admins only.'
-            ], 403);
-        }
-
+    if (!$user->hasRole('SuperAdmin') && !$user->hasRole('admin')) {
         return response()->json([
-            'success' => true,
-            'data' => [
-                'personal_information' => [
-                    'id'         => $user->id,
-                    'full_name'  => $user->full_name,
-                    'email'      => $user->email,
-                    'phone'      => trim(($user->country_code ?? '') . ' ' . ($user->phone_number ?? '')),
-                    'country_code'=> $user->country_code,
-                    'phone_number'=> $user->phone_number,
-                    'role'       => $user->getRoleNames()->first() ?? 'SuperAdmin',
-                    'department' => 'Management', // ثابت مؤقتًا لأن ما في عمود
-                    'joined_on'  => optional($user->created_at)->format('d F Y'),
-                    'last_login' => null, // يحتاج عمود last_login_at
-                    'location'   => $user->governorate,
-                    'photo'      => $user->photo
-                        ? asset('storage/' . ltrim($user->photo, '/'))
-                        : null,
-                ],
-                'security_access' => [
-                    'two_factor_enabled' => (bool) $user->two_factor_enabled,
-                    'account_status'     => $user->account_status,
-                    'active_sessions'    => $user->tokens()->count(),
-                ],
-            ]
-        ]);
+            'success' => false,
+            'message' => 'Unauthorized. Admins only.'
+        ], 403);
     }
 
+    $dialCode = $this->toDialCode($user->country_code);
 
-    public function updateAdminProfile(Request $request)
-    {
-        $user = $request->user();
-
-        if (!$user->hasRole('SuperAdmin') && !$user->hasRole('admin')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized. Admins only.'
-            ], 403);
-        }
-
-        $validator = Validator::make($request->all(), [
-            'full_name'     => 'sometimes|string|max:255',
-            'country_code'  => 'sometimes|string|max:5',
-            'phone_number'  => 'sometimes|string|max:20',
-            'governorate'   => 'sometimes|string|max:100',
-            'photo'         => 'nullable|image|mimes:jpg,jpeg,png,avif|max:2048',
-            'two_factor_enabled' => 'sometimes|boolean',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors'  => $validator->errors()
-            ], 422);
-        }
-
-        // تحديث الصورة
-        if ($request->hasFile('photo')) {
-            if ($user->photo && Storage::disk('public')->exists($user->photo)) {
-                Storage::disk('public')->delete($user->photo);
-            }
-            $user->photo = $request->file('photo')->store('users', 'public');
-        }
-
-        $user->fill($request->only([
-            'full_name',
-            'country_code',
-            'phone_number',
-            'governorate',
-            'two_factor_enabled',
-        ]));
-
-        $user->save();
-
-        return response()->json([
-            'success' => true,
-            'message' => 'Admin profile updated successfully',
-            'data' => [
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'personal_information' => [
                 'id'            => $user->id,
                 'full_name'     => $user->full_name,
                 'email'         => $user->email,
-                'country_code'  => $user->country_code,
-                'phone_number'  => $user->phone_number,
-                'governorate'   => $user->governorate,
-                'two_factor_enabled' => (bool) $user->two_factor_enabled,
-                'account_status'=> $user->account_status,
+
+                // للعرض
+                'phone'         => trim(($dialCode ?? '') . ' ' . ($user->phone_number ?? '')),
+                'dial_code'     => $dialCode,              // +963
+                'country_code'  => $user->country_code,    // SY
+                'phone_number'  => $user->phone_number,    // 933333333
+
+                'role'          => $user->getRoleNames()->first() ?? 'SuperAdmin',
+                'department'    => 'Management',
+                'joined_on'     => optional($user->created_at)->format('d F Y'),
+                'last_login'    => null,
+                'location'      => $user->governorate,
                 'photo'         => $user->photo
                     ? asset('storage/' . ltrim($user->photo, '/'))
                     : null,
-            ]
-        ]);
+            ],
+            'security_access' => [
+                'two_factor_enabled' => (bool) $user->two_factor_enabled,
+                'account_status'     => $user->account_status,
+                'active_sessions'    => $user->tokens()->count(),
+            ],
+        ]
+    ]);
+}
+
+
+
+   public function updateAdminProfile(Request $request)
+{
+    $user = $request->user();
+
+    if (!$user->hasRole('SuperAdmin') && !$user->hasRole('admin')) {
+        return response()->json([
+            'success' => false,
+            'message' => 'Unauthorized. Admins only.'
+        ], 403);
     }
+
+    $validator = Validator::make($request->all(), [
+        'full_name'          => 'sometimes|string|max:255',
+        'country_code'       => 'sometimes|string|max:5', // مثل SY
+        'phone_number'       => 'sometimes|string|max:20',
+        'governorate'        => 'sometimes|string|max:100',
+        'photo'              => 'nullable|image|mimes:jpg,jpeg,png,avif|max:2048',
+        'two_factor_enabled' => 'sometimes|boolean',
+    ]);
+
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors'  => $validator->errors()
+        ], 422);
+    }
+
+    if ($request->hasFile('photo')) {
+        if ($user->photo && Storage::disk('public')->exists($user->photo)) {
+            Storage::disk('public')->delete($user->photo);
+        }
+        $user->photo = $request->file('photo')->store('users', 'public');
+    }
+
+    if ($request->filled('full_name')) {
+        $user->full_name = $request->full_name;
+    }
+
+    if ($request->filled('governorate')) {
+        $user->governorate = $request->governorate;
+    }
+
+    if ($request->has('two_factor_enabled')) {
+        $user->two_factor_enabled = filter_var($request->two_factor_enabled, FILTER_VALIDATE_BOOLEAN);
+    }
+
+    // country_code: خزّن ISO فقط (SY) بدون +
+    if ($request->filled('country_code')) {
+        $code = strtoupper(trim($request->country_code));
+        $code = ltrim($code, '+');
+        $user->country_code = $code;
+    }
+
+    // phone_number: خزّن الرقم فقط بدون رمز الدولة
+    if ($request->filled('phone_number')) {
+        $phone = preg_replace('/\D+/', '', $request->phone_number); // أرقام فقط
+        $country = strtoupper($user->country_code ?? '');
+
+        // شيل أي بادئة دولة شائعة إذا انبعتت بالغلط داخل الرقم
+        $dialPrefixes = [
+            'SY' => ['963'],
+            'DE' => ['49'],
+            'AE' => ['971'],
+            'NL' => ['31'],
+            'JO' => ['962'],
+        ];
+
+        if ($country && isset($dialPrefixes[$country])) {
+            foreach ($dialPrefixes[$country] as $prefix) {
+                if (str_starts_with($phone, $prefix)) {
+                    $phone = substr($phone, strlen($prefix));
+                    break;
+                }
+            }
+        }
+
+        // شيل صفر البداية المحلي إن وجد
+        $phone = ltrim($phone, '0');
+
+        $user->phone_number = $phone;
+    }
+
+    $user->save();
+
+    $dialCode = $this->toDialCode($user->country_code);
+
+    return response()->json([
+        'success' => true,
+        'message' => 'Admin profile updated successfully',
+        'data' => [
+            'id'                 => $user->id,
+            'full_name'          => $user->full_name,
+            'email'              => $user->email,
+            'country_code'       => $user->country_code, // SY
+            'dial_code'          => $dialCode,           // +963
+            'phone_number'       => $user->phone_number, // 933333333
+            'phone_display'      => trim($dialCode . ' ' . $user->phone_number),
+            'governorate'        => $user->governorate,
+            'two_factor_enabled' => (bool) $user->two_factor_enabled,
+            'account_status'     => $user->account_status,
+            'photo'              => $user->photo
+                ? asset('storage/' . ltrim($user->photo, '/'))
+                : null,
+        ]
+    ]);
+}
+
+private function toDialCode(?string $countryCode): ?string
+{
+    if (!$countryCode) {
+        return null;
+    }
+
+    $map = [
+        'SY' => '+963',
+        'DE' => '+49',
+        'AE' => '+971',
+        'NL' => '+31',
+        'JO' => '+962',
+        'US' => '+1',
+        'GB' => '+44',
+        'TR' => '+90',
+        'EG' => '+20',
+        'LB' => '+961',
+        'IQ' => '+964',
+        'SA' => '+966',
+    ];
+
+    $code = strtoupper(ltrim($countryCode, '+'));
+
+    return $map[$code] ?? (str_starts_with($countryCode, '+') ? $countryCode : null);
+}
 
     /**
  * حيوانات الطبيب البيطري الحالي
