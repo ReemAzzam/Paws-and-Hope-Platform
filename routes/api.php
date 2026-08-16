@@ -79,12 +79,14 @@ Route::prefix('v1')->group(function () {
         Route::get('/{id}/track', [RescueReportController::class, 'track']);
     });
 
+     Route::get('/lost-found/myPosts', [LostFoundController::class, 'myPosts'])->middleware('auth:sanctum');
+
      // Public Lost & Found
     Route::prefix('lost-found')->group(function () {
         Route::get('/', [LostFoundController::class, 'index']);
         Route::get('/{lostFound}', [LostFoundController::class, 'show']);
         Route::get('/{lostFound}/similar', [LostFoundController::class, 'similarPosts']);
-        
+
     });
 
    // Available Animals For Sponsorship
@@ -124,6 +126,7 @@ Route::prefix('v1')->group(function () {
      // ============== Public Consultations ==============
     Route::get('/public-consultations', [GeneralConsultationController::class, 'getAllPublicConsultations']);
 
+    Route::get('/veterinarians/{id}', [ProfileController::class, 'getVetProfile']);
     // ====================== Auth Protected ======================
     Route::middleware('auth:sanctum')->group(function () {
 
@@ -147,7 +150,6 @@ Route::prefix('v1')->group(function () {
             // Veterinarian Profile
             Route::put('/vet/complete',[RegisterController::class,'completeVetProfile'])
             ->middleware('role:veterinarian');
-            Route::get('/veterinarians/{id}', [ProfileController::class, 'getVetProfile']);
             Route::get('/vet/{id}/animals', [ProfileController::class, 'myAnimals']);
             Route::post('/veterinarians/update', [ProfileController::class, 'updateVetProfile']);
 
@@ -164,11 +166,14 @@ Route::prefix('v1')->group(function () {
             Route::get('/admin', [ProfileController::class, 'showAdminProfile']);
             Route::post('/admin', [ProfileController::class, 'updateAdminProfile']);
         });
+         
+
          Route::prefix('lost-found')->group(function () {
+
             Route::post('/', [LostFoundController::class, 'store']);
             Route::put('/{lostFound}', [LostFoundController::class, 'update']);
             Route::delete('/{lostFound}', [LostFoundController::class, 'destroy']);
-            Route::get('/myPosts', [LostFoundController::class, 'myPosts']);
+
        });
 
          // Matching
