@@ -295,4 +295,62 @@ public function store(Request $request)
             'message' => 'تم حذف المنشور بنجاح'
         ]);
     }
+    // all my lost&found posts i have posted
+    /**
+ * كل منشورات Lost & Found الخاصة بالمستخدم الحالي (بدون فلاتر)
+ * GET /api/v1/lost-found/my-posts
+ */
+    public function myPosts(Request $request)
+    {
+        $user = $request->user();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'User not authenticated. Check your Bearer Token.'
+            ], 401);
+        }
+
+        $posts = LostFound::with(['photos'])
+            ->where('user_id', $user->id)
+            ->latest()
+            ->get()
+            ->map(function ($post) {
+                return [
+                    'id'                   => $post->id,
+                    'post_type'            => $post->post_type,
+                    'status'               => $post->status,
+                    'animal_type'          => $post->animal_type,
+                    'name'                 => $post->name,
+                    'breed'                => $post->breed,
+                    'gender'               => $post->gender,
+                    'size'                 => $post->size,
+                    'age'                  => $post->age,
+                    'color'                => $post->color,
+                    'description'          => $post->description,
+                    'location_description' => $post->location_description,
+                    'latitude'             => $post->latitude,
+                    'longitude'            => $post->longitude,
+                    'incident_at'          => $post->incident_at,
+                    'contact_phone'        => $post->contact_phone,
+                    'distinctive_marks'    => $post->distinctive_marks,
+                    'collar_tags'          => $post->collar_tags,
+                    'microchipped'         => (bool) $post->microchipped,
+                    'neutered'             => (bool) $post->neutered,
+                    'temperament'          => $post->temperament,
+                    'views'                => $post->views,
+                    'images'               => $post->photos->map(function ($photo) {
+                        return asset('storage/' . ltrim($photo->photo_url, '/'));
+                    })->values()->toArray(),
+                    'created_at'           => $post->created_at,
+                    'updated_at'           => $post->updated_at,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'count'   => $posts->count(),
+            'data'    => $posts,
+        ]);
+    }
 }

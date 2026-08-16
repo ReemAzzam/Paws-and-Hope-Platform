@@ -84,6 +84,7 @@ Route::prefix('v1')->group(function () {
         Route::get('/', [LostFoundController::class, 'index']);
         Route::get('/{lostFound}', [LostFoundController::class, 'show']);
         Route::get('/{lostFound}/similar', [LostFoundController::class, 'similarPosts']);
+        
     });
 
    // Available Animals For Sponsorship
@@ -167,6 +168,7 @@ Route::prefix('v1')->group(function () {
             Route::post('/', [LostFoundController::class, 'store']);
             Route::put('/{lostFound}', [LostFoundController::class, 'update']);
             Route::delete('/{lostFound}', [LostFoundController::class, 'destroy']);
+            Route::get('/myPosts', [LostFoundController::class, 'myPosts']);
        });
 
          // Matching
