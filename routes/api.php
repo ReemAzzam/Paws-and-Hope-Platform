@@ -67,7 +67,8 @@ Route::prefix('v1')->group(function () {
     Route::get('/{animal_id}/medical-conditions/{id}', [AnimalMedicalConditionController::class, 'show']);
      Route::get('/{animal_id}/vaccinations', [VaccinationController::class, 'showByAnimal']);
     Route::get('/{animal_id}/behavioral-attributes', [BehavioralAttributeController::class, 'showByAnimal']);
-     });
+      Route::get('/vet/{id}/animals', [ProfileController::class, 'myAnimals']);
+    });
 
     Route::prefix('rescue/reports')->group(function () {
 
@@ -127,7 +128,7 @@ Route::prefix('v1')->group(function () {
     Route::get('/public-consultations', [GeneralConsultationController::class, 'getAllPublicConsultations']);
 
       Route::get('/statistics',[TransparencyDashboardController::class , 'dashboardStats']);
-      
+
     Route::get('/veterinarians/{id}', [ProfileController::class, 'getVetProfile']);
 
     Route::get('/veterinarians/{vetId}/tips', [AwarenessPostController::class, 'getVeterinarianTips']);
@@ -154,7 +155,7 @@ Route::prefix('v1')->group(function () {
             // Veterinarian Profile
             Route::put('/vet/complete',[RegisterController::class,'completeVetProfile'])
             ->middleware('role:veterinarian');
-            Route::get('/vet/{id}/animals', [ProfileController::class, 'myAnimals']);
+
             Route::post('/veterinarians/update', [ProfileController::class, 'updateVetProfile']);
 
             // Volunteer Profile
