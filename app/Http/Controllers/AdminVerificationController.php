@@ -336,6 +336,7 @@ class AdminVerificationController extends Controller
 
                     'is_approved' => $vet->is_approved,
                     'approved_at' => $vet->approved_at,
+                    'account_status'=>$vet->user?->account_status,
                 ];
             })->values(),
         ], 200);
@@ -436,6 +437,7 @@ class AdminVerificationController extends Controller
 
                     'is_approved' => $volunteer->is_approved,
                     'approved_at' => $volunteer->approved_at,
+                    'account_status'=>$volunteer->user?->account_status,
                 ];
             })->values(),
         ], 200);
@@ -483,6 +485,7 @@ class AdminVerificationController extends Controller
 
                     'is_approved' => $volunteer->is_approved,
                     'approved_at' => $volunteer->approved_at,
+                    'account_status'=>$volunteer->user?->account_status,
                 ];
             })->values(),
         ], 200);
@@ -728,6 +731,8 @@ class AdminVerificationController extends Controller
                 'photo'        => $user->photo
                     ? asset('storage/' . $user->photo)
                     : null,
+
+                'account_status' =>$user->account_status
             ];
         });
 
@@ -738,11 +743,64 @@ class AdminVerificationController extends Controller
         ], 200);
     }
 
+    public function getVolunteers(Request $request)
+    {
+        $perPage = (int) $request->input('per_page', 12);
+
+        $volunteers = Volunteer::with([
+                'user:id,full_name,email,photo,account_status,phone_number,country_code,governorate',
+            ])
+            // بدون فلتر is_approved حتى يرجع كل الحالات
+            ->latest()
+            ->paginate($perPage);
+
+        $data = collect($volunteers->items())->map(function ($volunteer) {
+            return [
+                'id' => $volunteer->id,
+
+                'photo' => $volunteer->user?->photo
+                    ? asset('storage/' . ltrim($volunteer->user->photo, '/'))
+                    : null,
+
+                'full_name' => $volunteer->user?->full_name,
+                'email' => $volunteer->user?->email,
+                'phone_number' => $volunteer->user?->phone_number,
+                'country_code' => $volunteer->user?->country_code,
+                'governorate' => $volunteer->user?->governorate,
+
+                'detailed_address' => $volunteer->detailed_address,
+                'age' => $volunteer->age,
+                'vol_type' => $volunteer->vol_type,
+                'experience_level' => $volunteer->experience_level,
+                'equipment' => $volunteer->equipment,
+
+                'current_latitude' => $volunteer->current_latitude,
+                'current_longitude' => $volunteer->current_longitude,
+
+                'is_approved' => $volunteer->is_approved,
+                'approved_at' => $volunteer->approved_at,
+                'account_status' => $volunteer->user?->account_status,
+            ];
+        })->values();
+
+        return response()->json([
+            'success' => true,
+            'count'   => $volunteers->total(),
+            'data'    => $data,
+            'meta'    => [
+                'current_page' => $volunteers->currentPage(),
+                'last_page'    => $volunteers->lastPage(),
+                'per_page'     => $volunteers->perPage(),
+                'total'        => $volunteers->total(),
+            ],
+        ], 200);
+    }
+
 
     public function getVeterinarians()
     {
         $veterinarians = Veterinarian::with([
-            'user:id,full_name,email,photo',
+            'user:id,full_name,email,photo,account_status',
             'animals:id,name,type,health_status,vet_id'
         ])
         ->where('is_approved', true)
@@ -762,7 +820,12 @@ class AdminVerificationController extends Controller
                     'email' => $vet->user?->email,
 
                     'specialization' => $vet->specialization,
+                    'license_number' => $vet->license_number,
                     'clinic_location' => $vet->clinic_location,
+                    'working_hours' =>$vet->working_hours,
+                    'experience_years' => $vet->experience_years,
+
+                    'account_status'=>$vet->user?->account_status,
 
                     'cases' => $vet->animals->map(function ($animal) {
                         return [
@@ -777,97 +840,79 @@ class AdminVerificationController extends Controller
         ], 200);
     }
     //====================== الرسم البياني =========================
-    public function getVerificationChart(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'period' => 'nullable|in:this_month,last_month',
-        ]);
+  public function getVerificationChart(Request $request)
+{
+    $validator = Validator::make($request->all(), [
+        'period' => 'nullable|in:this_month,last_month',
+    ]);
 
-        if ($validator->fails()) {
-            return response()->json([
-                'success' => false,
-                'errors' => $validator->errors()
-            ], 422);
-        }
+    if ($validator->fails()) {
+        return response()->json([
+            'success' => false,
+            'errors' => $validator->errors()
+        ], 422);
+    }
 
-        $period = $request->input('period', 'this_month');
+    $period = $request->input('period', 'this_month');
 
-        if ($period === 'last_month') {
-            $startDate = now()->subMonthNoOverflow()->startOfMonth();
-            $endDate   = now()->subMonthNoOverflow()->endOfMonth();
-        } else {
-            $startDate = now()->startOfMonth();
-            $endDate   = now()->endOfMonth();
-        }
+    if ($period === 'last_month') {
+        $startDate = now()->subMonthNoOverflow()->startOfMonth();
+        $endDate   = now()->subMonthNoOverflow()->endOfMonth();
+    } else {
+        $startDate = now()->startOfMonth();
+        $endDate   = now()->endOfMonth();
+    }
 
-        /*
-        |--------------------------------------------------------------------------
-        | Get veterinarians
-        |--------------------------------------------------------------------------
-        */
-
-        $veterinarians = Veterinarian::whereBetween('created_at', [
+    // عدد الأطباء الذين تمت الموافقة عليهم بكل يوم
+    $veterinarians = Veterinarian::where('is_approved', true)
+        ->whereBetween('approved_at', [
             $startDate,
             $endDate
         ])
         ->get()
         ->groupBy(function ($vet) {
-            return $vet->created_at->format('Y-m-d');
+            return $vet->approved_at->format('Y-m-d');
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | Get volunteers
-        |--------------------------------------------------------------------------
-        */
-
-        $volunteers = Volunteer::whereBetween('created_at', [
+    // عدد المتطوعين الذين تمت الموافقة عليهم بكل يوم
+    $volunteers = Volunteer::where('is_approved', true)
+        ->whereBetween('approved_at', [
             $startDate,
             $endDate
         ])
         ->get()
         ->groupBy(function ($volunteer) {
-            return $volunteer->created_at->format('Y-m-d');
+            return $volunteer->approved_at->format('Y-m-d');
         });
 
-        /*
-        |--------------------------------------------------------------------------
-        | Generate chart points
-        |--------------------------------------------------------------------------
-        */
+    $xAxis = [];
+    $veterinarianData = [];
+    $volunteerData = [];
 
-        $xAxis = [];
-        $veterinarianData = [];
-        $volunteerData = [];
+    $currentDate = $startDate->copy();
 
-        $currentDate = $startDate->copy();
+    while ($currentDate <= $endDate) {
 
-        while ($currentDate <= $endDate) {
+        $dateKey = $currentDate->format('Y-m-d');
 
-            $dateKey = $currentDate->format('Y-m-d');
+        $xAxis[] = $currentDate->format('M j');
 
-            $xAxis[] = $currentDate->format('M j');
+        $veterinarianData[] =
+            $veterinarians->get($dateKey)?->count() ?? 0;
 
-            $veterinarianData[] =
-                $veterinarians->get($dateKey)?->count() ?? 0;
+        $volunteerData[] =
+            $volunteers->get($dateKey)?->count() ?? 0;
 
-            $volunteerData[] =
-                $volunteers->get($dateKey)?->count() ?? 0;
-
-            $currentDate->addDay();
-        }
-
-        return response()->json([
-            'success' => true,
-            'data' => [
-                'monthLabel' => $startDate->format('F'),
-
-                'xAxis' => $xAxis,
-
-                'veterinarians' => $veterinarianData,
-
-                'volunteers' => $volunteerData,
-            ]
-        ], 200);
+        $currentDate->addDay();
     }
+
+    return response()->json([
+        'success' => true,
+        'data' => [
+            'monthLabel'    => $startDate->format('F'),
+            'xAxis'         => $xAxis,
+            'veterinarians' => $veterinarianData,
+            'volunteers'    => $volunteerData,
+        ]
+    ], 200);
 }

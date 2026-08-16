@@ -595,25 +595,17 @@ class ProfileController extends Controller
 
     /**
  * حيوانات الطبيب البيطري الحالي
- * GET /api/v1/vet/my-animals
+ * 
  */
-    public function myAnimals(Request $request)
+  
+    public function myAnimals(Request $request, $vetId)
     {
-        $user = $request->user();
-
-        if (!$user->hasRole('veterinarian')) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Unauthorized. This route is for veterinarians only.'
-            ], 403);
-        }
-
-        $vet = $user->veterinarian;
+        $vet = \App\Models\Veterinarian::with('user:id,full_name,photo')->find($vetId);
 
         if (!$vet) {
             return response()->json([
                 'success' => false,
-                'message' => 'Veterinarian profile not completed yet.'
+                'message' => 'Veterinarian not found.'
             ], 404);
         }
 
@@ -622,6 +614,8 @@ class ProfileController extends Controller
             ->latest()
             ->get()
             ->map(function ($animal) {
+                $photoUrl = optional($animal->photos->first())->photo_url;
+
                 return [
                     'id'                  => $animal->id,
                     'name'                => $animal->name,
@@ -632,10 +626,10 @@ class ProfileController extends Controller
                     'health_status'       => $animal->health_status,
                     'availability_status' => $animal->availability_status,
                     'is_urgent'           => (bool) $animal->is_urgent,
-                    'photo'               => optional($animal->photos->first())->photo_url
-                        ? (str_starts_with($animal->photos->first()->photo_url, 'http')
-                            ? $animal->photos->first()->photo_url
-                            : asset('storage/' . ltrim($animal->photos->first()->photo_url, '/')))
+                    'photo'               => $photoUrl
+                        ? (str_starts_with($photoUrl, 'http')
+                            ? $photoUrl
+                            : asset('storage/' . ltrim($photoUrl, '/')))
                         : null,
                 ];
             });
@@ -643,6 +637,13 @@ class ProfileController extends Controller
         return response()->json([
             'success' => true,
             'data' => [
+                'veterinarian' => [
+                    'id'        => $vet->id,
+                    'full_name' => $vet->user?->full_name,
+                    'photo'     => $vet->user?->photo
+                        ? asset('storage/' . ltrim($vet->user->photo, '/'))
+                        : null,
+                ],
                 'total'   => $animals->count(),
                 'animals' => $animals,
             ]

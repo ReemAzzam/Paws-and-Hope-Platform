@@ -29,8 +29,8 @@ class GeneralConsultationController extends Controller
 
         return response()->json([
             'success' => true,
-            'message' => $request->veterinarian_id 
-                ? 'Your question has been successfully submitted to the selected veterinarian.' 
+            'message' => $request->veterinarian_id
+                ? 'Your question has been successfully submitted to the selected veterinarian.'
                 : 'Your general question has been published and will be answered by the first available veterinarian.',
             'data'    => $consultation
         ], 201);
@@ -264,20 +264,57 @@ class GeneralConsultationController extends Controller
         ], 200);
     }
 
-    public function getAllPublicConsultations(Request $request)
+   public function getAllPublicConsultations(Request $request)
     {
         $consultations = GeneralConsultation::with([
-                'user:id,full_name',                 // اسم السائل
-                'veterinarian.user:id,full_name'      // اسم الطبيب إذا أجاب
+                'user:id,full_name,photo',                      // السائل + صورته
+                'veterinarian.user:id,full_name,photo',         // الطبيب المجيب + صورته
             ])
-            ->select('id', 'user_id', 'veterinarian_id', 'question', 'answer', 'status', 'created_at', 'updated_at')
+            ->select(
+                'id',
+                'user_id',
+                'veterinarian_id',
+                'question',
+                'answer',
+                'status',
+                'created_at',
+                'updated_at'
+            )
             ->latest()
-            ->paginate(15); // دعم الترقيم 15 استشارة بالصفحة
+            ->paginate(15)
+            ->through(function ($consultation) {
+                return [
+                    'id'     => $consultation->id,
+                    'question' => $consultation->question,
+                    'answer'   => $consultation->answer,
+                    'status'   => $consultation->status,
+                    'created_at' => $consultation->created_at,
+                    'updated_at' => $consultation->updated_at,
+
+                    // السائل
+                    'user' => [
+                        'id'        => $consultation->user?->id,
+                        'full_name' => $consultation->user?->full_name,
+                        'photo'     => $consultation->user?->photo
+                            ? asset('storage/' . ltrim($consultation->user->photo, '/'))
+                            : null,
+                    ],
+
+                    // الطبيب (إذا تم تعيينه/أجاب)
+                    'veterinarian' => $consultation->veterinarian ? [
+                        'id'        => $consultation->veterinarian->id,
+                        'full_name' => $consultation->veterinarian->user?->full_name,
+                        'photo'     => $consultation->veterinarian->user?->photo
+                            ? asset('storage/' . ltrim($consultation->veterinarian->user->photo, '/'))
+                            : null,
+                    ] : null,
+                ];
+            });
 
         return response()->json([
             'success' => true,
             'message' => 'All public consultations retrieved successfully.',
-            'data'    => $consultations
+            'data'    => $consultations,
         ], 200);
     }
 }

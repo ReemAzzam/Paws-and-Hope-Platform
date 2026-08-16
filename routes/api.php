@@ -147,7 +147,7 @@ Route::prefix('v1')->group(function () {
             Route::put('/vet/complete',[RegisterController::class,'completeVetProfile'])
             ->middleware('role:veterinarian');
             Route::get('/veterinarians/{id}', [ProfileController::class, 'getVetProfile']);
-            Route::get('/vet/animals', [ProfileController::class, 'myAnimals']);
+            Route::get('/vet/{id}/animals', [ProfileController::class, 'myAnimals']);
             Route::post('/veterinarians/update', [ProfileController::class, 'updateVetProfile']);
 
             // Volunteer Profile
@@ -218,11 +218,12 @@ Route::prefix('v1')->group(function () {
             Route::patch('/volunteers/{id}/unblock',[AdminVerificationController::class,'unblockVolunteer']);
             Route::get('/volunteers/approved', [AdminVerificationController::class, 'getApprovedVolunteers']);
             Route::get('/volunteers/pending', [AdminVerificationController::class, 'getPendingvolunteers']);
-            Route::get('/admin/volunteers/filter', [AdminVerificationController::class, 'filterVolunteers']);
+            Route::get('/volunteers/filter', [AdminVerificationController::class, 'filterVolunteers']);
 
             //========== Admin Dashboard ==============
             Route::get('/reg-users', [AdminVerificationController::class, 'getRegularUsers']);
             Route::get('/Vets', [AdminVerificationController::class, 'getVeterinarians']);
+            Route::get('/Volunteers', [AdminVerificationController::class, 'getVolunteers']);
 
             // ======== Donation Management ========
             Route::get('/donations/pending', [DonationController::class, 'getPendingDonations']);
