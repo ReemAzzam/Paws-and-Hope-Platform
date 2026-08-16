@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Auth;
 use App\Http\Controllers\Controller;
 use Illuminate\Validation\Rules\Password;
 use App\Models\User;
+use App\Services\LostFound;
 
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -39,6 +40,8 @@ class ProfileController extends Controller
             ->count();
         $GeneralConsultationsCount = \App\Models\GeneralConsultation::where('user_id', $user->id)
             ->count();
+        $lostFoundPostsCount = \App\Models\LostFound::where('user_id', $user->id)
+            ->count();
 
         return response()->json([
             'success' => true,
@@ -72,6 +75,8 @@ class ProfileController extends Controller
                     'rescue_reports' => $rescueReportsCount,
 
                     'general_consultations' => $GeneralConsultationsCount,
+
+                    'lost_found_posts' => $lostFoundPostsCount,
                 ]
 
             ]
