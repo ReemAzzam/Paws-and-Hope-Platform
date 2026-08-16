@@ -126,11 +126,15 @@ Route::prefix('v1')->group(function () {
      // ============== Public Consultations ==============
     Route::get('/public-consultations', [GeneralConsultationController::class, 'getAllPublicConsultations']);
 
+      Route::get('/statistics',[TransparencyDashboardController::class , 'dashboardStats']);
+      
     Route::get('/veterinarians/{id}', [ProfileController::class, 'getVetProfile']);
+
+    Route::get('/veterinarians/{vetId}/tips', [AwarenessPostController::class, 'getVeterinarianTips']);
     // ====================== Auth Protected ======================
     Route::middleware('auth:sanctum')->group(function () {
 
-        Route::get('/statistics',[TransparencyDashboardController::class , 'dashboardStats']);
+
 
         Route::post('/logout', [LoginController::class, 'logout']);
 
@@ -166,12 +170,12 @@ Route::prefix('v1')->group(function () {
             Route::get('/admin', [ProfileController::class, 'showAdminProfile']);
             Route::post('/admin', [ProfileController::class, 'updateAdminProfile']);
         });
-         
+
 
          Route::prefix('lost-found')->group(function () {
 
             Route::post('/', [LostFoundController::class, 'store']);
-            Route::put('/{lostFound}', [LostFoundController::class, 'update']);
+            Route::put('/{lostFound}', [LostFoundController::class, 'updateStatus']);
             Route::delete('/{lostFound}', [LostFoundController::class, 'destroy']);
 
        });

@@ -54,7 +54,7 @@ class LostFoundService
                     : $candidate->id,
                 'match_score'   => $matchResult['score'],
                 'match_reasons' => $matchResult['reasons'],
-                'status'        => 'pending',
+                'status' => $data['status'] ?? 'open',
                 'notified_at'   => now(),
             ]);
             // تحميل العلاقات

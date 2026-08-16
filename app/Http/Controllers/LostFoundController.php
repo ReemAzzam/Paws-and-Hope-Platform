@@ -66,6 +66,7 @@ public function store(Request $request)
     $validator = Validator::make($request->all(), [
         'post_type'            => 'required|in:lost,found',
         'animal_type'          => 'required|in:dog,cat,bird,rabbit,other',
+        
         'name'                 => 'nullable|string|max:100',
         'breed'                => 'nullable|string',
         'gender'               => 'nullable|in:male,female,unknown',
@@ -78,6 +79,7 @@ public function store(Request $request)
         'latitude'             => 'required|numeric|between:-90,90',
         'longitude'            => 'required|numeric|between:-180,180',
         'contact_phone'        => 'nullable|string',
+        'contact_email'        => 'nullable|string|email|max:255',
         'distinctive_marks'    => 'nullable|string',
         'collar_tags'          => 'nullable|string',
         'microchipped'         => 'boolean',
@@ -107,6 +109,9 @@ public function store(Request $request)
     $postData['user_id'] = $user->id;
 
     $postData['incident_at'] = $request->incident_at;
+    $postData['contact_email'] = $request->contact_email;
+    $postData['contact_phone'] = $request->contact_phone;
+    $postData['status'] = 'open';
     $post = $this->service->createPost($postData);
 
 
@@ -125,17 +130,46 @@ public function store(Request $request)
         }
     }
 
+$post->load('photos');
 
-    $post->load('photos');
+return response()->json([
+    'success' => true,
+    'message' => 'تم نشر المنشور بنجاح',
+    'data'    => [
+        'id'                   => $post->id,
+        'post_type'            => $post->post_type,
+        'status'               => $post->status, // open | resolved | closed
+        'animal_type'          => $post->animal_type,
+        'name'                 => $post->name,
+        'breed'                => $post->breed,
+        'gender'               => $post->gender,
+        'size'                 => $post->size,
+        'age'                  => $post->age,
+        'color'                => $post->color,
+        'description'          => $post->description,
+        'location_description' => $post->location_description,
+        'latitude'             => $post->latitude,
+        'longitude'            => $post->longitude,
+        'incident_at'          => $post->incident_at,
+        'contact_phone'        => $post->contact_phone,
+        'contact_email'        => $post->contact_email,
+        'distinctive_marks'    => $post->distinctive_marks,
+        'collar_tags'          => $post->collar_tags,
+        'microchipped'         => (bool) $post->microchipped,
+        'neutered'             => (bool) $post->neutered,
+        'temperament'          => $post->temperament,
+        'user_id'              => $post->user_id,
+        'created_at'           => $post->created_at,
+        'updated_at'           => $post->updated_at,
 
-    return response()->json([
-        'success' => true,
-        'message' => 'تم نشر المنشور بنجاح',
-        'data'    => $post
-    ], 201);
+        // روابط الصور الكاملة
+        'images' => $post->photos->map(function ($photo) {
+            return asset('storage/' . ltrim($photo->photo_url, '/'));
+        })->values()->toArray(),
+    ]
+], 201);
+
 }
-
-
     // ====================== عرض منشور واحد ======================
       public function show(LostFound $lostFound)
 {
@@ -163,6 +197,7 @@ public function store(Request $request)
         'id'                => $lostFound->id,
         'type'              => ucfirst($lostFound->animal_type),
         'status'            => $lostFound->post_type === 'lost' ? 'LOST PET' : 'FOUND PET',
+        
         'name'              => $lostFound->name ?? 'Unknown',
         'breed'             => $lostFound->breed,
         'gender'            => ucfirst($lostFound->gender ?? 'Unknown'),
@@ -176,6 +211,8 @@ public function store(Request $request)
         'neutered'          => $lostFound->neutered ? 'Yes' : 'No',
         'temperament'       => $lostFound->temperament,
         'description'       => $lostFound->description,
+        'contact_phone'     => $lostFound->contact_phone,
+        'contact_email'     => $lostFound->contact_email,
 
         'location' => [
             'address'     => $lostFound->location_description,
@@ -185,11 +222,14 @@ public function store(Request $request)
             'time'        => optional($lostFound->incident_at)->format('g:i A')
                         ?? $lostFound->created_at->format('g:i A'),
             'coordinates' => [$lostFound->latitude, $lostFound->longitude]
+            
         ],
 
         'publisher' => [
             'name'          => $lostFound->user->full_name ?? $lostFound->user->name,
-            'avatar'        => '/images/default-avatar.png',
+           'avatar' => $lostFound->user?->photo
+                ? asset('storage/' . ltrim($lostFound->user->photo, '/'))
+                : null,
             'joined'        => $lostFound->user->created_at->format('M Y'),
             'postsCount'    => 0,
             'reunitedCount' => 0,

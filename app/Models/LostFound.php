@@ -14,8 +14,8 @@ class LostFound extends Model
     protected $table = 'lost_found';
 
     protected $fillable = [
-        'user_id', 'post_type', 'animal_type', 'name', 'breed', 'gender',
-        'size', 'age', 'color', 'description', 'location_description',
+        'user_id', 'post_type','status', 'animal_type', 'name', 'breed', 'gender',
+        'size', 'age', 'color', 'description','contact_email','contact_phone', 'location_description',
         'latitude', 'longitude', 'contact_phone', 'image_url', 'status',
         'distinctive_marks', 'collar_tags', 'microchipped', 'neutered',
         'temperament', 'views' , 'incident_at'

@@ -41,6 +41,10 @@ class AwarenessPost extends Model
     {
         return $this->belongsTo(Veterinarian::class, 'veterinarian_id');
     }
+    public function awarenessPosts()
+{
+    return $this->hasMany(AwarenessPost::class, 'veterinarian_id');
+}
 
     public function likes()
     {

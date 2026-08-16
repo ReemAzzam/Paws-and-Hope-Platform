@@ -3,23 +3,23 @@
 namespace App\Http\Controllers\Auth;
 
 use App\Http\Controllers\Controller;
-use Illuminate\Support\Facades\Cache;
 use App\Models\User;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
-use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Facades\Hash;
 use App\Notifications\SendPasswordResetOTPNotification;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Hash;
+use Illuminate\Support\Facades\Validator;
 
 class ForgotPasswordController extends Controller
 {
     /**
-     * طلب إعادة تعيين كلمة المرور (إرسال OTP)
+     * طلب إعادة تعيين كلمة المرور
+     * OTP يُرسل فقط إلى نفس إيميل الحساب المسجل
      */
     public function sendResetLink(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'email' => 'required|email|exists:users,email',
+            'email' => 'required|email',
         ]);
 
         if ($validator->fails()) {
@@ -29,78 +29,104 @@ class ForgotPasswordController extends Controller
             ], 422);
         }
 
-        $user = User::whereEmail($request->email)->firstOrFail();
+        // البحث عن الحساب بنفس الإيميل المسجل فقط
+        $user = User::where('email', $request->email)->first();
 
-        // إرسال OTP لإعادة تعيين كلمة المرور
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No account is registered with this email address.'
+            ], 404);
+        }
+
+        // حماية إضافية: الحساب لازم يكون موجود وفعال (اختياري)
+        if (in_array($user->account_status, ['rejected', 'suspended'])) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Password reset is not allowed for this account.'
+            ], 403);
+        }
+
+        // إرسال OTP إلى نفس إيميل الحساب فقط
         $user->notify(new SendPasswordResetOTPNotification());
 
         return response()->json([
             'success' => true,
-            'message' => 'Password reset OTP has been sent to your email.'
+            'message' => 'Password reset OTP has been sent to your registered email.'
         ]);
     }
 
     /**
      * التحقق من OTP وتغيير كلمة المرور
+     * الإيميل هنا يجب أن يكون نفس إيميل الحساب + نفس OTP المرسل له
      */
     public function reset(Request $request)
-{
-    // 1) Validate Request
-    $validator = Validator::make($request->all(), [
-        'email'                 => 'required|email|exists:users,email',
-        'otp'                   => 'required|string|size:6',
-        'password'              => [
-            'required',
-            'confirmed',
-            'min:8',
-            'regex:/[A-Z]/',      // حرف كبير
-            'regex:/[a-z]/',      // حرف صغير
-            'regex:/[0-9]/',      // رقم
-            'regex:/[@$!%*#?&]/', // رمز
-        ],
-    ]);
+    {
+        $validator = Validator::make($request->all(), [
+            'email'    => 'required|email',
+            'otp'      => 'required|string|size:6',
+            'password' => [
+                'required',
+                'confirmed',
+                'min:8',
+                'regex:/[A-Z]/',
+                'regex:/[a-z]/',
+                'regex:/[0-9]/',
+                'regex:/[@$!%*#?&]/',
+            ],
+        ], [
+            'password.regex' => 'Password must include uppercase, lowercase, number, and special character.',
+        ]);
 
-    if ($validator->fails()) {
+        if ($validator->fails()) {
+            return response()->json([
+                'success' => false,
+                'errors'  => $validator->errors()
+            ], 422);
+        }
+
+        // المستخدم صاحب هذا الإيميل فقط
+        $user = User::where('email', $request->email)->first();
+
+        if (!$user) {
+            return response()->json([
+                'success' => false,
+                'message' => 'No account is registered with this email address.'
+            ], 404);
+        }
+
+        // OTP مربوط حصريًا بهذا الإيميل
+        $cacheKey = 'reset_otp_' . $user->email;
+        $cachedOtp = Cache::get($cacheKey);
+
+        if (!$cachedOtp) {
+            return response()->json([
+                'success' => false,
+                'message' => 'OTP expired. Please request a new one.'
+            ], 400);
+        }
+
+        if ((string) $cachedOtp !== (string) $request->otp) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Invalid OTP code.'
+            ], 400);
+        }
+
+        // حذف OTP بعد التحقق
+        Cache::forget($cacheKey);
+
+        // تحديث باسورد نفس المستخدم فقط
+        $user->update([
+            'password' => Hash::make($request->password),
+        ]);
+
+        // تسجيل خروج من كل الجلسات
+        $user->tokens()->delete();
+
         return response()->json([
-            'success' => false,
-            'errors'  => $validator->errors()
-        ], 422);
+            'success' => true,
+            'message' => 'Password has been reset successfully. Please login again.',
+        ]);
     }
-
-    $user = User::where('email', $request->email)->first();
-
-    // 2) Check OTP from Cache
-    $cachedOtp = Cache::get('reset_otp_' . $request->email);
-
-    if (!$cachedOtp) {
-        return response()->json([
-            'success' => false,
-            'message' => 'OTP expired. Please request a new one.'
-        ], 400);
-    }
-
-    if ($cachedOtp != $request->otp) {
-        return response()->json([
-            'success' => false,
-            'message' => 'Invalid OTP code.'
-        ], 400);
-    }
-
-    // 3) OTP is valid → delete it
-    Cache::forget('reset_otp_' . $request->email);
-
-    // 4) Update password securely
-    $user->update([
-        'password' => bcrypt($request->password),
-    ]);
-
-    // 5) Delete all tokens (force logout everywhere)
-    $user->tokens()->delete();
-
-    return response()->json([
-        'success' => true,
-        'message' => 'Password has been reset successfully. Please login again.',
-    ]);
-}
-
 }

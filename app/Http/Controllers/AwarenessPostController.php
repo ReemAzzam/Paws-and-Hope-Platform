@@ -220,4 +220,49 @@ class AwarenessPostController extends Controller
                 'likes_count' => $likesCount
             ], 200);
         }
+
+    
+   public function getVeterinarianTips($vetId)
+    {
+        $vet = \App\Models\Veterinarian::with('user:id,full_name,photo')->find($vetId);
+
+        if (!$vet) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Veterinarian not found.'
+            ], 404);
+        }
+        $tipsCount = \App\Models\AwarenessPost::query()
+            ->where('veterinarian_id', $vet->id)->count();
+        $tips = \App\Models\AwarenessPost::query()
+            ->where('veterinarian_id', $vet->id)
+            // إذا البوستات مربوطة بـ user_id استخدم هذا بدل السطر فوق:
+            // ->where('user_id', $vet->user_id)
+            ->latest()
+            ->paginate(12)
+            ->through(function ($tip) {
+                return [
+                    'id'         => $tip->id,
+                    'title'      => $tip->title ?? null,
+                    'content'    => $tip->content ?? $tip->body ?? null,
+                    'created_at' => $tip->created_at,
+                    'updated_at' => $tip->updated_at,
+                ];
+            });
+
+        return response()->json([
+            'success' => true,
+            'total' => $tipsCount,
+            'data' => [
+                'veterinarian' => [
+                    'id'        => $vet->id,
+                    'full_name' => $vet->user?->full_name,
+                    'photo'     => $vet->user?->photo
+                        ? asset('storage/' . ltrim($vet->user->photo, '/'))
+                        : null,
+                ],
+                'tips' => $tips,
+            ]
+        ]);}
+
 }

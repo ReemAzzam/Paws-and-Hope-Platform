@@ -28,6 +28,7 @@ return new class extends Migration {
             $table->decimal('longitude', 11, 8);
 
             $table->string('contact_phone')->nullable();
+            $table->string('contact_email')->nullable;
             $table->string('image_url')->nullable();
 
             $table->text('distinctive_marks')->nullable();
