@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Http\Controllers\Controller;
 use App\Models\Donation;
+use App\Models\LostFound;
 use App\Models\Expense;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -191,6 +192,7 @@ class TransparencyDashboardController extends Controller
         $donorsCount = \App\Models\Donation::where('status', 'verified')
             ->distinct('user_id')
             ->count('user_id');
+        $LostFoundPostsCount = \App\Models\LostFound::count();
 
         return response()->json([
             'success' => true,
@@ -200,6 +202,7 @@ class TransparencyDashboardController extends Controller
                 'successful_rescues'   => $successfulRescues,
                 'active_volunteers'    => $activeVolunteers,
                 'donors_count'         => $donorsCount,
+                'lost_found_posts_count' => $LostFoundPostsCount,
             ]
         ]);
     }
