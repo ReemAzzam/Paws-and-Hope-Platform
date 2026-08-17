@@ -31,18 +31,20 @@ class Donation extends Model
     ];
 
 
+
+
     public function user()
     {
         return $this->belongsTo(User::class);
     }
 
-        public function getReceiptImageUrlAttribute()
+    public function getReceiptImageUrlAttribute(): ?string
     {
         if (!$this->receipt_image_path) {
             return null;
         }
 
-        // إرجاع المسار المباشر المخزن في قاعدة البيانات
-        return asset(ltrim($this->receipt_image_path, '/'));
+        // تحويل المسار المخزن في DB إلى رابط قابل للفتح من المتصفح عبر storage disk
+        return Storage::disk('public')->url($this->receipt_image_path);
     }
 }

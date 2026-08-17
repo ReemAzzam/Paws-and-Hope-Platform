@@ -14,6 +14,29 @@ use App\Support\NotificationTemplates;
 
 class DonationController extends Controller
 {
+    /**
+     * دالة مساعدة لتوليد رابط الصورة المباشر حسب مكان حفظ المسار
+     */
+    private function getImageUrl(?string $path): ?string
+    {
+        if (!$path) {
+            return null;
+        }
+
+        // إذا كان المسار يبدأ برابط كامل مسبقاً
+        if (filter_var($path, FILTER_VALIDATE_URL)) {
+            return $path;
+        }
+
+        // إذا كانت الصور مخزنة داخل مجلد seeders/assets
+        if (str_starts_with($path, 'seeders/') || str_starts_with($path, 'assets/')) {
+            return asset($path);
+        }
+
+        // الافتراضي للصرف والتخزين المباشر عبر Storage Disk (Public)
+        return asset('storage/' . $path);
+    }
+
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
@@ -21,7 +44,7 @@ class DonationController extends Controller
             'currency'          => 'required|in:SYP,USD',
             'donation_type'     => 'required|in:food_and_feeding,surgery_and_neutering,emergency_treatment,general_donation,transport_and_rescue,shelter_and_housing,all',
             'gateway_type'      => 'required|in:al_haram,al_fouad,syriatel_cash,mtn_cash,western_union,paypal,gofundme,hand_delivery,external',
-            'transaction_number'=> 'required|string|max:12|unique',
+            'transaction_number'=> 'required|string|max:12|unique:donations,transaction_number',
             'receipt_image'     => 'required|image|mimes:jpeg,png,jpg,avif|max:10240',
             'is_anonymous'      => 'nullable|boolean',
         ]);
@@ -47,8 +70,9 @@ class DonationController extends Controller
             $receiptPath = null;
 
             if ($request->hasFile('receipt_image')) {
+                // حفظ الصورة في مجلد donation_receipt داخل public/storage/donation_receipt
                 $receiptPath = $request->file('receipt_image')
-                    ->store('donation_receipts', 'public');
+                    ->store('donation_receipt', 'public');
             }
             $userId = Auth::check() ? Auth::id() : null;
 
@@ -64,10 +88,13 @@ class DonationController extends Controller
                 'is_anonymous'       => $request->has('is_anonymous') ? (bool)$request->is_anonymous : false,
             ]);
 
+            $donationData = $donation->toArray();
+            $donationData['receipt_image_url'] = $this->getImageUrl($donation->receipt_image_path);
+
             return response()->json([
                 'success' => true,
                 'message' => 'Donation logged successfully. Status held at pending manual auditing verification.',
-                'data'    => $donation
+                'data'    => $donationData
             ], 201);
 
         } catch (\Exception $e) {
@@ -84,7 +111,12 @@ class DonationController extends Controller
         $pendingDonations = Donation::with('user')
             ->where('status', 'pending')
             ->orderBy('created_at', 'desc')
-            ->get();
+            ->get()
+            ->map(function ($donation) {
+                $donationData = $donation->toArray();
+                $donationData['receipt_image_url'] = $this->getImageUrl($donation->receipt_image_path);
+                return $donationData;
+            });
 
         return response()->json([
             'success' => true,
@@ -121,10 +153,13 @@ class DonationController extends Controller
             'status' => 'verified'
         ]);
 
+        $donationData = $donation->toArray();
+        $donationData['receipt_image_url'] = $this->getImageUrl($donation->receipt_image_path);
+
         return response()->json([
             'success' => true,
             'message' => 'Transaction statement verified successfully. Funds cleared and committed to dashboard tracking logs.',
-            'data'    => $donation
+            'data'    => $donationData
         ], 200);
     }
 
@@ -169,10 +204,13 @@ class DonationController extends Controller
             'rejection_reason' => $request->rejection_reason
         ]);
 
+        $donationData = $donation->toArray();
+        $donationData['receipt_image_url'] = $this->getImageUrl($donation->receipt_image_path);
+
         return response()->json([
             'success' => true,
             'message' => 'Donation record rejected successfully. Audit tracking metrics saved.',
-            'data'    => $donation
+            'data'    => $donationData
         ], 200);
     }
 
@@ -234,7 +272,7 @@ class DonationController extends Controller
                 'transaction_number' => $donation->transaction_number ?? 'N/A',
                 'amount'             => "{$donation->amount} {$donation->currency}",
                 'status'             => $donation->status,
-                'receipt_image_url'  => $donation->receipt_image_url,
+                'receipt_image_url'  => $this->getImageUrl($donation->receipt_image_path),
                 'created_at'         => $donation->created_at->toDateTimeString(),
             ];
         });

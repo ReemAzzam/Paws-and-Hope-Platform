@@ -11,83 +11,54 @@ class SponsorshipSeeder extends Seeder
 {
     public function run(): void
     {
-        // جلب الـ IDs المتاحة للمستخدمين والحيوانات
-        $userIds = User::pluck('id')->toArray();
+        // جلب المستخدمين بحساب regular_user حصراً
+        $regularUserIds = User::role('regular_user', 'api')->pluck('id')->toArray();
+
+        if (empty($regularUserIds)) {
+            $this->command->warn('⚠️ No regular users found with role "regular_user". Falling back to all users.');
+            $regularUserIds = User::pluck('id')->toArray();
+        }
+
         $animalIds = Animal::pluck('id')->toArray();
 
-        // التوقف بحذر إذا كانت إحدى الجداول الأساسية فارغة
-        if (empty($userIds) || empty($animalIds)) {
+        if (empty($regularUserIds) || empty($animalIds)) {
             $this->command->warn('⚠️ Skipping SponsorshipSeeder: No users or animals found.');
             return;
         }
 
-        // دالة جلب user_id عشوائي من الموجودين فعلياً
-        $getRandomUserId = fn() => $userIds[array_rand($userIds)];
-        
-        // دالة تعيين animal_id بالترتيب تجنباً للتكرار غير المقصود
-        $getAnimalId = fn($index) => $animalIds[$index % count($animalIds)];
+        $statuses = ['pending', 'active', 'cancelled', 'paused'];
+        $currencies = ['SYP', 'USD'];
 
-        Sponsorship::insert([
-            [
-                'user_id' => $getRandomUserId(),
-                'animal_id' => $getAnimalId(0),
-                'monthly_amount' => 25,
-                'currency' => 'USD',
-                'status' => 'active',
-                'start_date' => now()->subMonths(3)->toDateString(),
-                'next_payment_due' => now()->addDays(10)->toDateString(),
-                'notes' => 'Monthly sponsorship for Max.',
-                'created_at' => now()->subMonths(3),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => $getRandomUserId(),
-                'animal_id' => $getAnimalId(1),
-                'monthly_amount' => 150000,
-                'currency' => 'SYP',
-                'status' => 'active',
-                'start_date' => now()->subMonths(2)->toDateString(),
-                'next_payment_due' => now()->addDays(5)->toDateString(),
-                'notes' => 'Regular monthly sponsorship.',
-                'created_at' => now()->subMonths(2),
-                'updated_at' => now(),
-            ],
-            [
-                'user_id' => $getRandomUserId(),
-                'animal_id' => $getAnimalId(2),
-                'monthly_amount' => 30,
-                'currency' => 'USD',
-                'status' => 'pending',
-                'start_date' => null,
-                'next_payment_due' => null,
-                'notes' => 'Waiting for sponsorship approval.',
-                'created_at' => now()->subDays(4),
-                'updated_at' => now()->subDays(4),
-            ],
-            [
-                'user_id' => $getRandomUserId(),
-                'animal_id' => $getAnimalId(3),
-                'monthly_amount' => 200000,
-                'currency' => 'SYP',
-                'status' => 'paused',
-                'start_date' => now()->subMonths(5)->toDateString(),
-                'next_payment_due' => now()->addDays(20)->toDateString(),
-                'notes' => 'Sponsorship temporarily paused.',
-                'created_at' => now()->subMonths(5),
-                'updated_at' => now()->subDays(10),
-            ],
-            [
-                'user_id' => $getRandomUserId(),
-                'animal_id' => $getAnimalId(4),
-                'monthly_amount' => 40,
-                'currency' => 'USD',
-                'status' => 'cancelled',
-                'start_date' => now()->subMonths(6)->toDateString(),
-                'next_payment_due' => null,
-                'notes' => 'Sponsorship cancelled by sponsor.',
-                'created_at' => now()->subMonths(6),
-                'updated_at' => now()->subMonth(),
-            ],
-        ]);
+        $sponsorships = [];
+
+        for ($i = 1; $i <= 25; $i++) {
+            $currency = $currencies[array_rand($currencies)];
+            $status = $statuses[array_rand($statuses)];
+            $amount = $currency === 'USD' ? rand(15, 100) : rand(50, 300) * 1000;
+
+            $startDate = in_array($status, ['active', 'paused', 'cancelled']) 
+                ? now()->subMonths(rand(1, 12))->toDateString() 
+                : null;
+
+            $nextPaymentDue = ($status === 'active' || $status === 'paused') 
+                ? now()->addDays(rand(1, 30))->toDateString() 
+                : null;
+
+            $sponsorships[] = [
+                'user_id'          => $regularUserIds[array_rand($regularUserIds)],
+                'animal_id'        => $animalIds[array_rand($animalIds)],
+                'monthly_amount'   => $amount,
+                'currency'         => $currency,
+                'status'           => $status,
+                'start_date'       => $startDate,
+                'next_payment_due' => $nextPaymentDue,
+                'payment_due_date' => $nextPaymentDue,
+                'notes'            => "Sponsorship record #{$i}",
+                'created_at'       => now()->subMonths(rand(1, 6)),
+                'updated_at'       => now(),
+            ];
+        }
+
+        Sponsorship::insert($sponsorships);
     }
 }

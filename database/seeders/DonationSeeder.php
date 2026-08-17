@@ -5,120 +5,106 @@ namespace Database\Seeders;
 use Illuminate\Database\Seeder;
 use App\Models\Donation;
 use App\Models\User;
+use Illuminate\Support\Facades\File;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 class DonationSeeder extends Seeder
 {
     public function run(): void
     {
-        $userIds = User::pluck('id')->toArray();
+        // 1. Fetch IDs of users with the 'regular_user' role only
+        $regularUserIds = User::role('regular_user', 'api')->pluck('id')->toArray();
 
-        if (empty($userIds)) {
-            $this->command->warn('⚠️ No users found in database. Setting user_id to null for donations.');
+        if (empty($regularUserIds)) {
+            $this->command->warn('⚠️ No regular users found with role "regular_user". Falling back to all users.');
+            $regularUserIds = User::pluck('id')->toArray();
         }
 
-        $getRandomUserId = function () use ($userIds) {
-            return !empty($userIds) ? $userIds[array_rand($userIds)] : null;
+        $getRandomUserId = function () use ($regularUserIds) {
+            return !empty($regularUserIds) ? $regularUserIds[array_rand($regularUserIds)] : null;
         };
 
-        Donation::insert([
-            [
+        // 2. Ensure default receipt image exists in public storage
+        $defaultReceiptImage = $this->ensureReceiptImageExists();
+
+        $donationTypes = [
+            'food_and_feeding',
+            'surgery_and_neutering',
+            'emergency_treatment',
+            'general_donation',
+            'transport_and_rescue',
+            'shelter_and_housing',
+        ];
+
+        $gatewayTypes = [
+            'al_haram',
+            'al_fouad',
+            'syriatel_cash',
+            'mtn_cash',
+            'western_union',
+            'paypal',
+            'gofundme',
+            'hand_delivery',
+            'external',
+        ];
+
+        $statuses = ['verified', 'pending', 'rejected'];
+
+        $donations = [];
+
+        // 3. Dynamically generate 40 donation records
+        for ($i = 1; $i <= 40; $i++) {
+            $currency = $i % 3 === 0 ? 'USD' : 'SYP';
+            $gateway  = $gatewayTypes[array_rand($gatewayTypes)];
+            $status   = $statuses[$i % 3];
+
+            // رقم المعاملة بحيث لا يتجاوز 12 حرفاً ليتوافق مع max:12
+            $transactionNo = $gateway === 'hand_delivery' 
+                ? null 
+                : 'TXN' . str_pad((string)$i, 3, '0', STR_PAD_LEFT) . rand(1000, 9999);
+
+            $donations[] = [
                 'user_id'            => $getRandomUserId(),
-                'amount'             => 500000,
-                'currency'           => 'SYP',
-                'donation_type'      => 'food_and_feeding',
-                'gateway_type'       => 'syriatel_cash',
-                'transaction_number' => 'STC-2026-001',
-                'receipt_image_path' => '/storage/donation_receipts/d1.jpg',
-                'status'             => 'verified',
-                'rejection_reason'   => null,
-                'is_anonymous'       => false,
-                'created_at'         => now()->subDays(10),
-                'updated_at'         => now()->subDays(9),
-            ],
-            [
-                'user_id'            => $getRandomUserId(),
-                'amount'             => 250000,
-                'currency'           => 'SYP',
-                'donation_type'      => 'surgery_and_neutering',
-                'gateway_type'       => 'mtn_cash',
-                'transaction_number' => 'MTN-2026-002',
-                'receipt_image_path' => '/storage/donation_receipts/d2.jpg',
-                'status'             => 'pending',
-                'rejection_reason'   => null,
-                'is_anonymous'       => false,
-                'created_at'         => now()->subDays(3),
-                'updated_at'         => now()->subDays(3),
-            ],
-            [
-                'user_id'            => $getRandomUserId(),
-                'amount'             => 100,
-                'currency'           => 'USD',
-                'donation_type'      => 'emergency_treatment',
-                'gateway_type'       => 'paypal',
-                'transaction_number' => 'PAYPAL-2026-003',
-                'receipt_image_path' => '/storage/donation_receipts/d3.jpg',
-                'status'             => 'verified',
-                'rejection_reason'   => null,
-                'is_anonymous'       => false,
-                'created_at'         => now()->subDays(7),
-                'updated_at'         => now()->subDays(6),
-            ],
-            [
-                'user_id'            => $getRandomUserId(),
-                'amount'             => 50,
-                'currency'           => 'USD',
-                'donation_type'      => 'shelter_and_housing',
-                'gateway_type'       => 'western_union',
-                'transaction_number' => 'WU-2026-004',
-                'receipt_image_path' => '/storage/donation_receipts/d4.jpg',
-                'status'             => 'pending',
-                'rejection_reason'   => null,
-                'is_anonymous'       => false,
-                'created_at'         => now()->subDays(2),
-                'updated_at'         => now()->subDays(2),
-            ],
-            [
-                'user_id'            => $getRandomUserId(),
-                'amount'             => 100000,
-                'currency'           => 'SYP',
-                'donation_type'      => 'transport_and_rescue',
-                'gateway_type'       => 'al_haram',
-                'transaction_number' => 'HARAM-2026-005',
-                'receipt_image_path' => '/storage/donation_receipts/d5.jpg',
-                'status'             => 'rejected',
-                'rejection_reason'   => 'رقم الحوالة غير صحيح أو الصورة غير واضحة',
-                'is_anonymous'       => false,
-                'created_at'         => now()->subDays(5),
-                'updated_at'         => now()->subDays(4),
-            ],
-            [
-                'user_id'            => $getRandomUserId(),
-                'amount'             => 75000,
-                'currency'           => 'SYP',
-                'donation_type'      => 'general_donation',
-                'gateway_type'       => 'hand_delivery',
-                'transaction_number' => null,
-                'receipt_image_path' => '/storage/donation_receipts/d6.jpg',
-                'status'             => 'verified',
-                'rejection_reason'   => null,
-                'is_anonymous'       => true,
-                'created_at'         => now()->subDays(15),
-                'updated_at'         => now()->subDays(14),
-            ],
-            [
-                'user_id'            => $getRandomUserId(),
-                'amount'             => 200,
-                'currency'           => 'USD',
-                'donation_type'      => 'general_donation', // تم التعديل من 'all' إلى 'general_donation'
-                'gateway_type'       => 'external',
-                'transaction_number' => 'EXT-2026-007',
-                'receipt_image_path' => '/storage/donation_receipts/d7.jpg',
-                'status'             => 'verified',
-                'rejection_reason'   => null,
-                'is_anonymous'       => true,
-                'created_at'         => now()->subDays(20),
-                'updated_at'         => now()->subDays(19),
-            ],
-        ]);
+                'amount'             => $currency === 'USD' ? rand(10, 300) : rand(25, 500) * 1000,
+                'currency'           => $currency,
+                'donation_type'      => $donationTypes[array_rand($donationTypes)],
+                'gateway_type'       => $gateway,
+                'transaction_number' => $transactionNo,
+                'receipt_image_path' => $defaultReceiptImage,
+                'status'             => $status,
+                'rejection_reason'   => $status === 'rejected' ? 'Invalid transaction number or receipt image is unclear.' : null,
+                'is_anonymous'       => (bool)($i % 5 === 0),
+                'created_at'         => now()->subDays(rand(1, 30)),
+                'updated_at'         => now()->subDays(rand(0, 29)),
+            ];
+        }
+
+        Donation::insert($donations);
+
+        $this->command->info('✅ Successfully seeded 40 donations associated exclusively with regular users.');
+    }
+
+    /**
+     * Copy the default receipt image to public storage if available.
+     */
+    private function ensureReceiptImageExists(): string
+    {
+        $relativePath = 'donation_receipt/receipt.jpeg';
+        
+        // المسار في مجلد assets الخاص بالـ Seeders
+        $sourcePath = database_path('seeders/assets/donation_receipt/receipt.jpeg');
+
+        if (File::exists($sourcePath)) {
+            Storage::disk('public')->put($relativePath, File::get($sourcePath));
+        } else {
+            // محاولة البحث عن امتداد .jpg في حال لم يوجد .jpeg
+            $altSourcePath = database_path('seeders/assets/donation_receipt/receipt.jpg');
+            if (File::exists($altSourcePath)) {
+                Storage::disk('public')->put($relativePath, File::get($altSourcePath));
+            }
+        }
+
+        return $relativePath;
     }
 }
