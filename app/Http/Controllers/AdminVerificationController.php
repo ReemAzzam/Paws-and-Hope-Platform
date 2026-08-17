@@ -426,8 +426,7 @@ public function unblockRegularUser(Request $request, $id)
             ->whereHas('user', function ($query) {
                 $query->where('account_status', 'pending');
             })
-            ->latest()
-            ->paginate($perPage);
+            ->latest();
 
         $data = collect($veterinarians->items())->map(function ($vet) {
             return [
@@ -632,7 +631,7 @@ public function unblockRegularUser(Request $request, $id)
         }
             $perPage = (int) $request->input('per_page', 12);
 
-            $veterinarians = $query->latest()->paginate($perPage);
+            $veterinarians = $query->latest();
 
             $data = collect($veterinarians->items())->map(function ($vet) {
                 return [
@@ -735,7 +734,7 @@ public function unblockRegularUser(Request $request, $id)
 
             $perPage = (int) $request->input('per_page', 12);
 
-            $volunteers = $query->latest()->paginate($perPage);
+            $volunteers = $query->latest();
 
             $data = collect($volunteers->items())->map(function ($volunteer) {
                 return [
@@ -823,8 +822,7 @@ public function unblockRegularUser(Request $request, $id)
                 'user:id,full_name,email,photo,account_status,phone_number,country_code,governorate',
             ])
             // بدون فلتر is_approved حتى يرجع كل الحالات
-            ->latest()
-            ->paginate($perPage);
+            ->latest();
 
         $data = collect($volunteers->items())->map(function ($volunteer) {
             return [
