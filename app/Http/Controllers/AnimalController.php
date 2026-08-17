@@ -10,13 +10,14 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Cache;
 
 class AnimalController extends Controller
 {
     /**
      * Display a listing of animals with real-time filtering (Type, Size, Gender, Age, Weight, Urgent).
      */
-    /*public function index(Request $request)
+    public function index1(Request $request)
     {
         $query = Animal::with(['photos', 'vet' , 'medicalConditions']);
 
@@ -86,7 +87,7 @@ class AnimalController extends Controller
             'success' => true,
             'data' => $animals
         ]);
-    }*/
+    }
 
     public function index(Request $request)
     {

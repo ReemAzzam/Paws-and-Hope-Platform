@@ -61,6 +61,7 @@ Route::prefix('v1')->group(function () {
     Route::prefix('animals')->group(function () {
     // ======== Public Animal Routes ========
     Route::get('/', [AnimalController::class, 'index']);
+        Route::get('/1', [AnimalController::class, 'index1']);
     Route::get('/{animal_id}', [AnimalController::class, 'show']);
      // ======== Public Medical Conditions ========
     Route::get('/{animal_id}/medical-conditions', [AnimalMedicalConditionController::class, 'index']);
