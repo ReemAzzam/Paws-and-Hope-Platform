@@ -16,7 +16,7 @@ class AnimalController extends Controller
     /**
      * Display a listing of animals with real-time filtering (Type, Size, Gender, Age, Weight, Urgent).
      */
-    public function index(Request $request)
+    /*public function index(Request $request)
     {
         $query = Animal::with(['photos', 'vet' , 'medicalConditions']);
 
@@ -80,6 +80,96 @@ class AnimalController extends Controller
         $animals = $query->latest()->paginate(12);
         $animals->getCollection()->each(function ($animal) {
        // $this->formatAnimalPhotos($animal);
+        });
+
+        return response()->json([
+            'success' => true,
+            'data' => $animals
+        ]);
+    }*/
+
+    public function index(Request $request)
+    {
+        // 1. توليد مفتاح فريد للكاش بناءً على كل الفلاتر المرسلة ورقم الصفحة
+        $page = $request->input('page', 1);
+        $queryParams = $request->only([
+            'type', 'gender', 'status', 'size', 'urgent', 
+            'min_age', 'max_age', 'min_weight', 'max_weight'
+        ]);
+        
+        // ترتيب المصطلحات لضمان ثبات مفتاح الكاش بغض النظر عن ترتيبها في URL
+        ksort($queryParams); 
+        $cacheKey = 'animals_index_page_' . $page . '_' . md5(http_build_query($queryParams));
+
+        // 2. استخدام الكاش لمدة 30 دقيقة (1800 ثانية)
+        $animals = Cache::remember($cacheKey, 1800, function () use ($request) {
+            $query = Animal::with(['photos', 'vet', 'medicalConditions']);
+
+            // Normalize inputs
+            $type   = strtolower($request->input('type'));
+            $gender = strtolower($request->input('gender'));
+            $status = strtolower($request->input('status'));
+            $size   = strtolower($request->input('size'));
+            $urgent = $request->input('urgent');
+
+            // Allowed ENUM values
+            $allowedTypes  = ['dog', 'cat', 'bird', 'rabbit', 'other'];
+            $allowedGender = ['male', 'female', 'unknown'];
+            $allowedStatus = ['available', 'pending', 'adopted', 'sponsored', 'under_treatment'];
+            $allowedSizes  = ['small', 'medium', 'large'];
+
+            // فلترة النوع
+            $query->when(in_array($type, $allowedTypes), function ($q) use ($type) {
+                $q->where('type', $type);
+            });
+
+            // فلترة الجنس
+            $query->when(in_array($gender, $allowedGender), function ($q) use ($gender) {
+                $q->where('gender', $gender);
+            });
+
+            // فلترة الحجم
+            $query->when(in_array($size, $allowedSizes), function ($q) use ($size) {
+                $q->where('size', $size);
+            });
+
+            // فلترة حالة الحيوان
+            $query->when(in_array($status, $allowedStatus), function ($q) use ($status) {
+                $q->where('availability_status', $status);
+            });
+
+            // فلترة المستعجل
+            $query->when($urgent !== null, function ($q) use ($urgent) {
+                $q->where('is_urgent', filter_var($urgent, FILTER_VALIDATE_BOOLEAN));
+            });
+
+            // فلترة العمر
+            $query->when($request->filled('min_age'), function ($q) use ($request) {
+                $q->where('age', '>=', $request->min_age);
+            });
+
+            $query->when($request->filled('max_age'), function ($q) use ($request) {
+                $q->where('age', '<=', $request->max_age);
+            });
+
+            // فلترة الوزن
+            $query->when($request->filled('min_weight'), function ($q) use ($request) {
+                $q->where('weight', '>=', $request->min_weight);
+            });
+
+            $query->when($request->filled('max_weight'), function ($q) use ($request) {
+                $q->where('weight', '<=', $request->max_weight);
+            });
+
+            // تنفيذ الاستعلام وترقيم النتائج
+            $paginatedAnimals = $query->latest()->paginate(12);
+
+            // إذا أردتِ تفعيل تنسيق الصور داخل الكاش قبل الحفظ
+            $paginatedAnimals->getCollection()->each(function ($animal) {
+                // $this->formatAnimalPhotos($animal);
+            });
+
+            return $paginatedAnimals;
         });
 
         return response()->json([
