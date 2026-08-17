@@ -21,7 +21,7 @@ class DonationController extends Controller
             'currency'          => 'required|in:SYP,USD',
             'donation_type'     => 'required|in:food_and_feeding,surgery_and_neutering,emergency_treatment,general_donation,transport_and_rescue,shelter_and_housing,all',
             'gateway_type'      => 'required|in:al_haram,al_fouad,syriatel_cash,mtn_cash,western_union,paypal,gofundme,hand_delivery,external',
-            'transaction_number'=> 'required|string|max:100',
+            'transaction_number'=> 'required|string|max:12|unique',
             'receipt_image'     => 'required|image|mimes:jpeg,png,jpg,avif|max:10240',
             'is_anonymous'      => 'nullable|boolean',
         ]);
