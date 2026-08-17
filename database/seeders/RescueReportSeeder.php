@@ -404,7 +404,7 @@ class RescueReportSeeder extends Seeder
     ): void {
 
         $directory = storage_path(
-            "app/public/rescue-reports/{$animalId}"
+            "app/public/rescue_reports/{$animalId}"
         );
 
         if (!File::exists($directory)) {
@@ -454,8 +454,8 @@ class RescueReportSeeder extends Seeder
 
             $fileName = $file->getFilename();
 
-            $relativePath =
-                "rescue-reports/{$animalId}/{$fileName}";
+            $relativePath = "rescue_reports/{$animalId}/{$fileName}";
+
 
             $imageUrl = asset(
                 "storage/{$relativePath}"

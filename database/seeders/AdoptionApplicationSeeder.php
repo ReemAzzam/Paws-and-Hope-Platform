@@ -1,6 +1,4 @@
-```php
 <?php
-
 namespace Database\Seeders;
 
 use App\Models\AdoptionApplication;
@@ -693,4 +691,3 @@ class AdoptionApplicationSeeder extends Seeder
         );
     }
 }
-```
