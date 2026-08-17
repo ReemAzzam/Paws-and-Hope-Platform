@@ -691,7 +691,4 @@ class AdoptionApplicationSeeder extends Seeder
         );
     }
 }
-<<<<<<< Updated upstream
-=======
 
->>>>>>> Stashed changes
