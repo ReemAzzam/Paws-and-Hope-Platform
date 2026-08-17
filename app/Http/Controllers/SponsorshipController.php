@@ -94,7 +94,7 @@ public function requestSponsorship(Request $request)
             'amount'             => 'required|numeric|min:0',
             'currency'           => 'required|in:SYP,USD',
             'payment_method'     => 'required|string',
-            'transaction_number' => 'required|string|unique:sponsorship_payments,transaction_number',
+            'transaction_number' => 'required|string|unique:sponsorship_payments,transaction_number|max:12',
             'receipt_image'      => 'required|image|mimes:jpeg,png,jpg,avif|max:4096',
         ]);
 
